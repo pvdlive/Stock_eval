@@ -1015,6 +1015,11 @@ async function runEvaluation() {
       }
     } catch(e2) {
       console.warn('Phase 2 exception:', e2.message);
+      // Show the error visibly so we can debug
+      throw new Error('Phase 2 failed: ' + e2.message);
+    }
+    if (!part2 || Object.keys(part2).length === 0) {
+      throw new Error('Phase 2 returned empty — check console for details. Try again in 60 seconds.');
     }
     currentData = Object.assign({}, part1, part2);
     currentTab = 0;
