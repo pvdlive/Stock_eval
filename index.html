@@ -939,7 +939,7 @@ async function runEvaluation() {
       },
       body: JSON.stringify({
         model: document.getElementById('modelSelect').value,
-        max_tokens: 10000,
+        max_tokens: 8000,
         system: SYS_PROMPT,
         messages: [{
           role: 'user',
@@ -968,7 +968,23 @@ async function runEvaluation() {
     const a = raw.indexOf('{'), b = raw.lastIndexOf('}');
     if (a >= 0 && b >= 0) raw = raw.slice(a, b + 1);
 
-    currentData = JSON.parse(raw);
+    // Attempt to repair truncated JSON by closing open structures
+    function repairJSON(str) {
+      try { return JSON.parse(str); } catch(e) {}
+      // Count open brackets and close them
+      let fixed = str;
+      const opens = (fixed.match(/\[/g) || []).length - (fixed.match(/\]/g) || []).length;
+      const braces = (fixed.match(/\{/g) || []).length - (fixed.match(/\}/g) || []).length;
+      // Remove trailing comma if present
+      fixed = fixed.replace(/,\s*$/, '');
+      for (let i = 0; i < opens; i++) fixed += ']';
+      for (let i = 0; i < braces; i++) fixed += '}';
+      try { return JSON.parse(fixed); } catch(e) {}
+      return null;
+    }
+
+    currentData = repairJSON(raw);
+    if (!currentData) throw new Error('Could not parse response — please try again.');
     currentTab = 0;
     litPills();
     render();
