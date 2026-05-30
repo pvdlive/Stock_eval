@@ -929,62 +929,49 @@ async function runEvaluation() {
   showLoading(ticker);
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: document.getElementById('modelSelect').value,
-        max_tokens: 8000,
-        system: SYS_PROMPT,
-        messages: [{
-          role: 'user',
-          content: `Ticker: ${ticker}\n\nExecute the full 8-step research protocol. Search SEC EDGAR first, then market data, analyst consensus, government databases, news, insider filings, and institutional ownership. Populate every single field with real, sourced data.`
-        }],
-        tools: [{ type: 'web_search_20250305', name: 'web_search' }]
-      })
-    });
+    const model = document.getElementById('modelSelect').value;
 
-    if (!resp.ok) {
-      const err = await resp.json();
-      const msg = err.error?.message || `HTTP ${resp.status}`;
-    if (msg.includes('model')) throw new Error('Unknown model — try a different model in the dropdown. ' + msg);
-    if (msg.includes('401') || msg.includes('auth')) throw new Error('Invalid API key. Check your key at console.anthropic.com.');
-    if (msg.includes('web_search')) throw new Error('Web search not available on your API plan. ' + msg);
-    throw new Error(msg);
+    async function callAnthropic(sysP, userMsg) {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model, max_tokens: 4000,
+          system: sysP,
+          messages: [{ role: 'user', content: userMsg }],
+          tools: [{ type: 'web_search_20250305', name: 'web_search' }]
+        })
+      });
+      if (!r.ok) {
+        const err = await r.json();
+        const msg = err.error && err.error.message ? err.error.message : 'HTTP ' + r.status;
+        if (msg.includes('rate')) throw new Error('Rate limit hit — wait 60 seconds and try again.');
+        if (msg.includes('credit') || msg.includes('balance')) throw new Error('Anthropic credit balance too low — add credits at console.anthropic.com/billing.');
+        if (msg.includes('401') || msg.includes('auth')) throw new Error('Invalid API key — check your key at console.anthropic.com.');
+        if (msg.includes('web_search')) throw new Error('Web search not available on your Anthropic plan.');
+        throw new Error(msg);
+      }
+      const data = await r.json();
+      let raw = '';
+      for (const block of data.content) { if (block.type === 'text') raw += block.text; }
+      raw = raw.replace(/```json|```/g, '').trim();
+      const a = raw.indexOf('{'), b = raw.lastIndexOf('}');
+      if (a >= 0 && b >= 0) raw = raw.slice(a, b + 1);
+      try { return JSON.parse(raw); } catch(e) { throw new Error('Could not parse response — please try again.'); }
     }
 
-    const data = await resp.json();
-    let raw = '';
-    for (const block of data.content) {
-      if (block.type === 'text') raw += block.text;
-    }
+    const p1sys = 'You are an equity research analyst. Search SEC EDGAR, market data, and analyst consensus. Return ONLY valid JSON, no markdown. Max 12 words per value. Signal values: green, yellow, or red. Schema: {"ticker":"","company":"","exchange":"","sector":"","price":"","marketCap":"","analystRating":"","sourcesUsed":[],"summary":{"fy_latest_label":"","fy_prev_label":"","fy_prev2_label":"","latest_q_label":"","fy_latest_revenue":"","fy_latest_netIncome":"","fy_latest_eps":"","fy_prev_revenue":"","fy_prev_netIncome":"","fy_prev_eps":"","fy_prev2_revenue":"","fy_prev2_netIncome":"","fy_prev2_eps":"","latest_quarter_revenue":"","latest_quarter_netIncome":"","latest_quarter_eps":"","rpo":"","rpo_growth":"","cash":"","debt":"","netCash":"","employees":"","subscriptionMix":"","renewalRate":"","tam":"","topCustomerPct":"","fcf":"","institutionalOwnership":"","shortInterest":"","insiderActivity":""},"scoring":{"criteria":[{"id":1,"criterion":"EPS Growth Next 5 Years","max":5,"score":0,"signal":"","justification":"","source":""},{"id":2,"criterion":"Revenue Growth Consistency","max":5,"score":0,"signal":"","justification":"","source":""},{"id":3,"criterion":"Net Profit Margin","max":5,"score":0,"signal":"","justification":"","source":""},{"id":4,"criterion":"Earnings Beat Frequency","max":5,"score":0,"signal":"","justification":"","source":""},{"id":5,"criterion":"EBITDA / Operating Income Trend","max":5,"score":0,"signal":"","justification":"","source":""},{"id":6,"criterion":"R&D / Innovation Investment","max":5,"score":0,"signal":"","justification":"","source":""},{"id":7,"criterion":"Market Position / Moat","max":5,"score":0,"signal":"","justification":"","source":""},{"id":8,"criterion":"Valuation vs Growth (PEG)","max":5,"score":0,"signal":"","justification":"","source":""}],"bonuses":[{"id":"B1","criterion":"Revenue Visibility / Backlog","max":4,"score":0,"signal":"","justification":"","source":""},{"id":"B2","criterion":"Customer Retention / NRR","max":3,"score":0,"signal":"","justification":"","source":""},{"id":"B3","criterion":"FCF / Rule of 40","max":3,"score":0,"signal":"","justification":"","source":""}],"baseTotal":0,"bonusTotal":0,"combinedTotal":0,"verdict":""},"valuation":[{"metric":"Trailing P/E (TTM)","value":"","benchmark":"","signal":"","notes":"","source":""},{"metric":"Forward P/E (NTM)","value":"","benchmark":"","signal":"","notes":"","source":""},{"metric":"PEG Ratio","value":"","benchmark":"<1 undervalued","signal":"","notes":"","source":""},{"metric":"EV/Revenue (LTM)","value":"","benchmark":"","signal":"","notes":"","source":""},{"metric":"EV/EBITDA","value":"","benchmark":"","signal":"","notes":"","source":""},{"metric":"P/FCF","value":"","benchmark":"","signal":"","notes":"","source":""},{"metric":"52-Week High / Low","value":"","benchmark":"","signal":"","notes":"","source":""},{"metric":"Short Interest (% float)","value":"","benchmark":"","signal":"","notes":"","source":""},{"metric":"Analyst Avg 12M Price Target","value":"","benchmark":"","signal":"","notes":"","source":""},{"metric":"Analyst Buy %","value":"","benchmark":"","signal":"","notes":"","source":""},{"metric":"Annual Dividend / Yield","value":"","benchmark":"","signal":"","notes":"","source":""}],"risks":[{"id":1,"factor":"","category":"","severity":"HIGH","assessment":"","mitigation":"","secRef":""},{"id":2,"factor":"","category":"","severity":"HIGH","assessment":"","mitigation":"","secRef":""},{"id":3,"factor":"","category":"","severity":"MEDIUM","assessment":"","mitigation":"","secRef":""},{"id":4,"factor":"","category":"","severity":"MEDIUM","assessment":"","mitigation":"","secRef":""},{"id":5,"factor":"","category":"","severity":"MEDIUM","assessment":"","mitigation":"","secRef":""},{"id":6,"factor":"","category":"","severity":"LOW","assessment":"","mitigation":"","secRef":""}]}';
 
-    raw = raw.replace(/```json|```/g, '').trim();
-    const a = raw.indexOf('{'), b = raw.lastIndexOf('}');
-    if (a >= 0 && b >= 0) raw = raw.slice(a, b + 1);
+    const p2sys = 'You are an equity research analyst. Return ONLY valid JSON, no markdown. Max 12 words per value. Signal values: green, yellow, or red. Schema: {"financials":{"fyLabel":"","fyPrevLabel":"","fyLatestLabel":"","quarterLabel":"","incomeStatement":[{"metric":"Revenue ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},{"metric":"Revenue Growth YoY","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},{"metric":"Gross Margin %","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},{"metric":"Operating Income GAAP ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},{"metric":"Operating Margin % GAAP","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},{"metric":"Net Income GAAP ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},{"metric":"Net Margin % GAAP","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},{"metric":"GAAP Diluted EPS","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},{"metric":"R&D Expenses ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""}],"cashFlow":[{"metric":"Operating Cash Flow ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},{"metric":"Free Cash Flow ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},{"metric":"FCF Margin %","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},{"metric":"Capital Expenditures ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""}],"balanceSheet":[{"metric":"Total Assets ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},{"metric":"Cash & Equivalents ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},{"metric":"Total Debt ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},{"metric":"Total Equity ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""}]},"growth":[{"metric":"3-Year Revenue CAGR","value":"","signal":"","notes":"","benchmark":"","source":""},{"metric":"Latest FY Revenue Growth","value":"","signal":"","notes":"","benchmark":"","source":""},{"metric":"Latest Quarter Revenue Growth","value":"","signal":"","notes":"","benchmark":"","source":""},{"metric":"FY+1 Revenue Guidance","value":"","signal":"","notes":"","benchmark":"","source":""},{"metric":"Non-GAAP Op Margin Trend","value":"","signal":"","notes":"","benchmark":"","source":""},{"metric":"Rule of 40 Score","value":"","signal":"","notes":"","benchmark":">40 good","source":""},{"metric":"Customer / ARR Growth","value":"","signal":"","notes":"","benchmark":"","source":""},{"metric":"Key Strategic Initiative","value":"","signal":"","notes":"","benchmark":"","source":""},{"metric":"Macro tailwinds / headwinds","value":"","signal":"","notes":"","benchmark":"","source":""}],"capitalStructure":[{"metric":"Shares Outstanding","value":"","signal":"","notes":"","source":""},{"metric":"Institutional Ownership %","value":"","signal":"","notes":"","source":""},{"metric":"Top 5 Institutional Holders","value":"","signal":"","notes":"","source":""},{"metric":"Short Interest / Days to Cover","value":"","signal":"","notes":"","source":""},{"metric":"Buyback Program","value":"","signal":"","notes":"","source":""},{"metric":"Insider Buying Form 4 6M","value":"","signal":"","notes":"","source":""},{"metric":"Insider Selling Form 4 6M","value":"","signal":"","notes":"","source":""},{"metric":"Annual Dividend","value":"","signal":"","notes":"","source":""},{"metric":"Long-Term Debt and Terms","value":"","signal":"","notes":"","source":""},{"metric":"Credit Rating","value":"","signal":"","notes":"","source":""},{"metric":"CEO","value":"","signal":"","notes":"","source":""},{"metric":"CFO","value":"","signal":"","notes":"","source":""}],"glossary":[{"metric":"P/E Ratio Trailing","formula":"Market Price / TTM EPS","goodThreshold":"","actual":"","whyItMatters":""},{"metric":"PEG Ratio","formula":"Forward P/E / 5-Yr EPS CAGR","goodThreshold":"Under 1 undervalued","actual":"","whyItMatters":"Adjusts PE for growth"},{"metric":"Gross Margin","formula":"Gross Profit / Revenue x 100","goodThreshold":"Over 50 percent strong","actual":"","whyItMatters":"Revenue after COGS"},{"metric":"Rule of 40","formula":"Revenue Growth plus FCF Margin","goodThreshold":"Over 40 good","actual":"","whyItMatters":"Growth efficiency metric"},{"metric":"Free Cash Flow","formula":"Operating Cash Flow minus Capex","goodThreshold":"Positive and growing","actual":"","whyItMatters":"Cash after operations"},{"metric":"FCF Margin","formula":"Free Cash Flow / Revenue","goodThreshold":"Over 20 percent strong","actual":"","whyItMatters":"Cash generation efficiency"},{"metric":"Short Interest","formula":"Shares short / Float","goodThreshold":"Under 5 percent low risk","actual":"","whyItMatters":"Bearish positioning measure"}]}';
 
-    // Attempt to repair truncated JSON by closing open structures
-    function repairJSON(str) {
-      try { return JSON.parse(str); } catch(e) {}
-      // Count open brackets and close them
-      let fixed = str;
-      const opens = (fixed.match(/\[/g) || []).length - (fixed.match(/\]/g) || []).length;
-      const braces = (fixed.match(/\{/g) || []).length - (fixed.match(/\}/g) || []).length;
-      // Remove trailing comma if present
-      fixed = fixed.replace(/,\s*$/, '');
-      for (let i = 0; i < opens; i++) fixed += ']';
-      for (let i = 0; i < braces; i++) fixed += '}';
-      try { return JSON.parse(fixed); } catch(e) {}
-      return null;
-    }
-
-    currentData = repairJSON(raw);
-    if (!currentData) throw new Error('Could not parse response — please try again.');
+    const part1 = await callAnthropic(p1sys, 'Ticker: ' + ticker + '. Search SEC EDGAR filings, current price, analyst ratings, recent earnings, and key risks. Fill every field with real concise data.');
+    const part2 = await callAnthropic(p2sys, 'Ticker: ' + ticker + '. Search SEC filings for financial statement data. Fill all income statement, cash flow, balance sheet, growth, capital structure and glossary fields with real concise data.');
+    currentData = Object.assign({}, part1, part2);
     currentTab = 0;
     litPills();
     render();
