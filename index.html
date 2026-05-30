@@ -917,11 +917,11 @@ async function runEvaluation() {
       },
       body: JSON.stringify({
         model: document.getElementById('modelSelect').value,
-        max_tokens: 10000,
+        max_tokens: 4000,
         system: SYS_PROMPT,
         messages: [{
           role: 'user',
-          content: `Ticker: ${ticker}\n\nExecute the full 8-step research protocol. Search SEC EDGAR first, then market data, analyst consensus, government databases, news, insider filings, and institutional ownership. Populate every single field with real, sourced data.`
+          content: `Ticker: ${ticker}\n\nResearch this stock using web search. Be concise — use short phrases not full sentences in all fields. Max 15 words per field. Cover: latest financials from SEC filings, current price and analyst targets, recent earnings and guidance, insider transactions, key risks. Populate every JSON field.`
         }],
         tools: [{ type: 'web_search_20250305', name: 'web_search' }]
       })
