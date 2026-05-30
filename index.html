@@ -913,6 +913,14 @@ Schema:
 For signal fields use exactly one of: green, yellow, red.
 Cite every data point with its actual source.`;
 
+function resetPills() {
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('lit'));
+}
+
+function litPills() {
+  document.querySelectorAll('.pill').forEach(p => p.classList.add('lit'));
+}
+
 async function runEvaluation() {
   const apiKey = document.getElementById('apiKeyInput').value.trim();
   const ticker = document.getElementById('tickerInput').value.trim().toUpperCase();
