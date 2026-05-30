@@ -969,11 +969,12 @@ async function runEvaluation() {
 
 
     // Phase 2 - build financials/growth/capital/glossary from part1 data + model knowledge
-    if (loadEl) {
+    const loadEl2 = document.getElementById('loadingSteps');
+    if (loadEl2) {
       const p2div = document.createElement('div');
       p2div.className = 'step-item active';
       p2div.innerHTML = '<div class="step-icon">›</div><span>Phase 2: Building financials, growth & capital structure...</span>';
-      loadEl.appendChild(p2div);
+      loadEl2.appendChild(p2div);
     }
 
     let part2 = {};
