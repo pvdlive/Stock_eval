@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Equity Analyst — AI Stock Evaluation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #111118;
+    --bg3: #1a1a24;
+    --bg4: #222230;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #e8e8f0;
+    --text2: #9090a8;
+    --text3: #5a5a72;
+    --accent: #c8f060;
+    --accent2: #a0d040;
+    --accent-dim: rgba(200,240,96,0.1);
+    --accent-dim2: rgba(200,240,96,0.06);
+    --green: #4ade80;
+    --green-bg: rgba(74,222,128,0.08);
+    --amber: #fbbf24;
+    --amber-bg: rgba(251,191,36,0.08);
+    --red: #f87171;
+    --red-bg: rgba(248,113,113,0.08);
+    --blue: #60a5fa;
+    --blue-bg: rgba(96,165,250,0.08);
+    --font-display: 'DM Serif Display', Georgia, serif;
+    --font-body: 'Instrument Sans', system-ui, sans-serif;
+    --font-mono: 'DM Mono', 'Courier New', monospace;
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg2); }
+  ::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+
+  /* ── Header ── */
+  .site-header {
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    background: rgba(10,10,15,0.92);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: var(--font-display);
+    font-size: 20px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-dot {
+    width: 8px; height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 2.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  .header-tag {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 0.08em;
+  }
+
+  /* ── API Key Banner ── */
+  .api-banner {
+    background: var(--accent-dim2);
+    border-bottom: 1px solid var(--accent-dim);
+    padding: 10px 2rem;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .api-banner label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+
+  .api-banner input {
+    flex: 1;
+    min-width: 260px;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 6px 12px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .api-banner input:focus { border-color: var(--accent); }
+
+  .api-banner select {
+    background: rgba(0,0,0,0.4);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 6px 10px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .api-banner select:focus { border-color: var(--accent); }
+  .api-banner select option { background: #1a1a24; color: var(--text); }
+
+  .api-note {
+    font-size: 11px;
+    color: var(--text3);
+    flex-shrink: 0;
+  }
+
+  /* ── Hero / Search ── */
+  .hero {
+    padding: 4rem 2rem 3rem;
+    max-width: 800px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .hero-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 1.2rem;
+  }
+
+  .hero-title {
+    font-family: var(--font-display);
+    font-size: clamp(36px, 5vw, 58px);
+    line-height: 1.1;
+    color: var(--text);
+    margin-bottom: 1rem;
+  }
+
+  .hero-title em {
+    font-style: italic;
+    color: var(--accent);
+  }
+
+  .hero-sub {
+    font-size: 15px;
+    color: var(--text2);
+    max-width: 520px;
+    margin: 0 auto 2.5rem;
+    line-height: 1.7;
+  }
+
+  /* ── Search Box ── */
+  .search-wrap {
+    display: flex;
+    gap: 0;
+    max-width: 560px;
+    margin: 0 auto 1.5rem;
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background: var(--bg2);
+  }
+
+  .search-wrap:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+  }
+
+  #tickerInput {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 14px 20px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    outline: none;
+  }
+
+  #tickerInput::placeholder {
+    text-transform: none;
+    font-size: 14px;
+    color: var(--text3);
+    letter-spacing: 0;
+    font-weight: 400;
+  }
+
+  .search-btn {
+    background: var(--accent);
+    color: #0a0a0f;
+    border: none;
+    padding: 0 28px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+  }
+
+  .search-btn:hover { background: var(--accent2); }
+  .search-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .search-btn svg { width: 16px; height: 16px; }
+
+  .source-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+
+  .pill {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    padding: 3px 10px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    color: var(--text3);
+    transition: all 0.3s;
+  }
+
+  .pill.lit {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-dim2);
+  }
+
+  /* ── Main layout ── */
+  .main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem 4rem;
+  }
+
+  /* ── Loading ── */
+  .loading-panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem;
+    background: var(--bg2);
+  }
+
+  .loading-title {
+    font-family: var(--font-display);
+    font-size: 22px;
+    margin-bottom: 0.5rem;
+  }
+
+  .loading-sub {
+    color: var(--text2);
+    font-size: 13px;
+    margin-bottom: 2rem;
+  }
+
+  .step-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .step-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text3);
+    transition: all 0.4s;
+  }
+
+  .step-item.active {
+    border-color: var(--accent);
+    color: var(--text);
+    background: var(--accent-dim2);
+  }
+
+  .step-item.done {
+    border-color: rgba(74,222,128,0.3);
+    color: var(--green);
+    background: var(--green-bg);
+  }
+
+  .step-icon {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--bg4);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-size: 10px;
+  }
+
+  .step-item.active .step-icon {
+    background: var(--accent);
+    animation: spin 1s linear infinite;
+  }
+
+  .step-item.done .step-icon { background: var(--green); }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Ticker banner ── */
+  .ticker-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .ticker-symbol {
+    font-family: var(--font-mono);
+    font-size: 28px;
+    font-weight: 500;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+  }
+
+  .ticker-company { font-size: 16px; color: var(--text); font-weight: 500; }
+
+  .ticker-meta {
+    font-size: 12px;
+    color: var(--text2);
+    font-family: var(--font-mono);
+    margin-top: 4px;
+  }
+
+  .ticker-right { display: flex; align-items: center; gap: 12px; }
+
+  .rating-badge {
+    padding: 6px 16px;
+    border-radius: var(--radius);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+  }
+
+  .rating-buy { background: var(--green-bg); color: var(--green); border: 1px solid rgba(74,222,128,0.2); }
+  .rating-hold { background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(251,191,36,0.2); }
+  .rating-sell { background: var(--red-bg); color: var(--red); border: 1px solid rgba(248,113,113,0.2); }
+
+  .score-chip {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text2);
+  }
+
+  .score-chip span { color: var(--accent); font-size: 18px; }
+
+  /* ── Tabs ── */
+  .tab-bar {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.5rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .tab-bar::-webkit-scrollbar { display: none; }
+
+  .tab-btn {
+    padding: 10px 18px;
+    font-size: 13px;
+    color: var(--text3);
+    cursor: pointer;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.15s, border-color 0.15s;
+    background: none;
+    border-left: none; border-right: none; border-top: none;
+    font-family: var(--font-body);
+  }
+
+  .tab-btn:hover { color: var(--text2); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+
+  /* ── Tables ── */
+  .table-wrap { overflow-x: auto; border-radius: var(--radius-lg); border: 1px solid var(--border); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  thead th {
+    background: var(--bg3);
+    padding: 10px 14px;
+    text-align: left;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--text3);
+    text-transform: uppercase;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+    font-weight: 500;
+  }
+
+  tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    line-height: 1.45;
+    color: var(--text2);
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+
+  tbody tr:hover td { background: var(--bg3); }
+
+  td.metric-name {
+    color: var(--text);
+    font-weight: 500;
+    white-space: nowrap;
+    min-width: 160px;
+  }
+
+  td.mono {
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  tr.subtotal td {
+    background: var(--bg3);
+    font-weight: 500;
+    color: var(--text);
+    border-top: 1px solid var(--border2);
+  }
+
+  /* ── KV Grid ── */
+  .kv-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+    margin-bottom: 1.5rem;
+  }
+
+  .kv-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+  }
+
+  .kv-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--text3);
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+
+  .kv-value {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    font-family: var(--font-mono);
+  }
+
+  /* ── Section labels ── */
+  .section { margin-bottom: 2rem; }
+
+  .section-title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--text3);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ── Score bar ── */
+  .score-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: var(--bg3);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    margin-top: 12px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .score-big { font-family: var(--font-display); font-size: 36px; color: var(--accent); }
+  .score-label { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+  .progress-track {
+    flex: 1;
+    min-width: 120px;
+    height: 6px;
+    background: var(--bg4);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+    transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .verdict-pill {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 6px 16px;
+    border-radius: 100px;
+  }
+
+  /* ── Signals ── */
+  .sig-green { color: var(--green); }
+  .sig-amber { color: var(--amber); }
+  .sig-red { color: var(--red); }
+
+  /* ── Risk badges ── */
+  .risk-badge {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    padding: 2px 9px;
+    border-radius: 100px;
+    text-transform: uppercase;
+  }
+
+  .risk-high { background: var(--red-bg); color: var(--red); border: 1px solid rgba(248,113,113,0.2); }
+  .risk-medium { background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(251,191,36,0.2); }
+  .risk-low { background: var(--green-bg); color: var(--green); border: 1px solid rgba(74,222,128,0.2); }
+
+  /* ── Sources ── */
+  .sources-block {
+    padding: 14px 16px;
+    background: var(--bg3);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text3);
+    margin-top: 1.5rem;
+    line-height: 1.7;
+  }
+
+  .sources-block strong { color: var(--text2); font-weight: 500; }
+
+  /* ── Empty state ── */
+  .empty-state {
+    text-align: center;
+    padding: 5rem 2rem;
+    color: var(--text3);
+  }
+
+  .empty-state .big-letter {
+    font-family: var(--font-display);
+    font-size: 80px;
+    line-height: 1;
+    color: var(--bg4);
+    margin-bottom: 1rem;
+    display: block;
+  }
+
+  .empty-state p { font-size: 15px; }
+
+  /* ── Error ── */
+  .error-box {
+    background: var(--red-bg);
+    border: 1px solid rgba(248,113,113,0.2);
+    border-radius: var(--radius-lg);
+    padding: 16px 20px;
+    color: var(--red);
+    font-size: 14px;
+  }
+
+  /* ── Footer ── */
+  .site-footer {
+    border-top: 1px solid var(--border);
+    padding: 1.5rem 2rem;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text3);
+    font-family: var(--font-mono);
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 640px) {
+    .hero { padding: 2.5rem 1rem 2rem; }
+    .main { padding: 0 1rem 3rem; }
+    .site-header { padding: 0 1rem; }
+    .api-banner { padding: 10px 1rem; }
+    .hero-title { font-size: 32px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header class="site-header">
+  <div class="logo">
+    <div class="logo-dot"></div>
+    Equity Analyst
+  </div>
+  <div class="header-tag">AI · SEC · EDGAR · Multi-Source</div>
+</header>
+
+<!-- ── API Key Banner ── -->
+<div class="api-banner">
+  <label>API KEY</label>
+  <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." autocomplete="off" />
+  <label style="margin-left:8px">MODEL</label>
+  <select id="modelSelect">
+    <option value="claude-sonnet-4-5">Claude Sonnet 4.5 (recommended)</option>
+    <option value="claude-opus-4-5">Claude Opus 4.5</option>
+    <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 (fastest)</option>
+    <option value="claude-opus-4-6">Claude Opus 4.6</option>
+    <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
+    <option value="claude-opus-4-7">Claude Opus 4.7</option>
+    <option value="claude-opus-4-8">Claude Opus 4.8</option>
+  </select>
+  <span class="api-note">Key stored in memory only · sent only to api.anthropic.com</span>
+</div>
+
+<!-- ── Hero ── -->
+<div class="hero">
+  <div class="hero-eyebrow">AI-Powered Equity Research</div>
+  <h1 class="hero-title">Deep analysis for<br><em>any stock</em></h1>
+  <p class="hero-sub">
+    Searches SEC EDGAR filings, 10-K/10-Q reports, analyst consensus, institutional ownership, insider transactions, government databases, and live market data — synthesised into 8 evaluation dimensions.
+  </p>
+
+  <div class="search-wrap">
+    <input type="text" id="tickerInput" placeholder="Enter ticker symbol (e.g. AAPL, NVDA, MSFT)" maxlength="12" autocomplete="off" autocorrect="off" spellcheck="false" />
+    <button class="search-btn" id="runBtn" onclick="runEvaluation()">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/>
+      </svg>
+      Evaluate
+    </button>
+  </div>
+
+  <div class="source-pills" id="pillRow">
+    <span class="pill" data-src="sec">SEC EDGAR</span>
+    <span class="pill" data-src="10k">10-K / 10-Q</span>
+    <span class="pill" data-src="market">Market data</span>
+    <span class="pill" data-src="analyst">Analyst consensus</span>
+    <span class="pill" data-src="macro">Gov / macro</span>
+    <span class="pill" data-src="news">News & calls</span>
+    <span class="pill" data-src="insider">Form 4 insider</span>
+    <span class="pill" data-src="inst">13F institutional</span>
+  </div>
+</div>
+
+<!-- ── Main content ── -->
+<div class="main" id="mainContent">
+  <div class="empty-state">
+    <span class="big-letter">&#x24;</span>
+    <p>Enter a ticker above to generate a full institutional-grade analysis</p>
+  </div>
+</div>
+
+<!-- ── Footer ── -->
+<footer class="site-footer">
+  Equity Analyst · Powered by Claude Sonnet 4.5 &amp; Anthropic Web Search · Not financial advice
+</footer>
+
+<script>
+const TABS = ['Summary','Scoring','Valuation','Financials','Growth & Ops','Capital Structure','Risk Register','Glossary'];
+let currentData = null;
+let currentTab = 0;
+
+const tickerEl = document.getElementById('tickerInput');
+tickerEl.addEventListener('keydown', e => { if (e.key === 'Enter') runEvaluation(); });
+
+const STEPS = [
+  'Searching SEC EDGAR — 10-K, 10-Q, 8-K, DEF 14A, Form 4',
+  'Extracting financial statements from annual & quarterly filings',
+  'Fetching real-time price, market cap, 52-week range, volume',
+  'Gathering analyst price targets & buy/hold/sell consensus',
+  'Checking Fed, BLS, Census.gov & macro economic indicators',
+  'Scanning earnings call transcripts, press releases & MD&A',
+  'Reviewing Form 4 insider transaction filings (last 6 months)',
+  'Fetching institutional 13F ownership & short interest data',
+  'Synthesising all sources into 8-dimension evaluation'
+];
+
+const SYS_PROMPT = `You are a senior equity research analyst with web search access. Produce an exhaustive, deeply sourced stock evaluation.
+
+MANDATORY RESEARCH PROTOCOL — search ALL of these before populating any field:
+1. SEC EDGAR (sec.gov) — latest 10-K, 10-Q, 8-K, DEF 14A, Form 4 insider transactions
+2. Financial statements — exact figures from filing tables (no estimates)
+3. Market data — current price, 52-week high/low, market cap, short interest, volume
+4. Analyst consensus — S&P Global, Refinitiv, Bloomberg, FactSet (price targets, EPS estimates, buy/hold/sell)
+5. Government & macro — BLS, Census.gov, Federal Reserve, FRED, relevant regulators (FDA/FCC/FTC/DOD/GSA per sector)
+6. News & management commentary — latest earnings call transcript, press releases, guidance, M&A
+7. Form 4 insider transactions — last 6 months, flag open-market CEO/CFO buys
+8. Institutional 13F — top holders, % institutional, recent changes, short interest % of float
+
+Return ONLY valid JSON. No markdown. No backticks. No preamble.
+
+Schema:
+{
+  "ticker":"","company":"","exchange":"","sector":"","price":"","marketCap":"","analystRating":"",
+  "sourcesUsed":["list every specific filing/source actually referenced"],
+  "summary":{
+    "fy_latest_label":"","fy_prev_label":"","fy_prev2_label":"","latest_q_label":"",
+    "fy_latest_revenue":"","fy_latest_netIncome":"","fy_latest_eps":"",
+    "fy_prev_revenue":"","fy_prev_netIncome":"","fy_prev_eps":"",
+    "fy_prev2_revenue":"","fy_prev2_netIncome":"","fy_prev2_eps":"",
+    "latest_quarter_revenue":"","latest_quarter_netIncome":"","latest_quarter_eps":"",
+    "rpo":"","rpo_growth":"","cash":"","debt":"","netCash":"",
+    "employees":"","subscriptionMix":"","renewalRate":"","tam":"","topCustomerPct":"","fcf":"",
+    "institutionalOwnership":"","shortInterest":"","insiderActivity":""
+  },
+  "scoring":{
+    "criteria":[
+      {"id":1,"criterion":"EPS Growth Next 5 Years","max":5,"score":0,"signal":"","justification":"","source":""},
+      {"id":2,"criterion":"Revenue Growth Consistency","max":5,"score":0,"signal":"","justification":"","source":""},
+      {"id":3,"criterion":"Net Profit Margin","max":5,"score":0,"signal":"","justification":"","source":""},
+      {"id":4,"criterion":"Earnings Beat Frequency","max":5,"score":0,"signal":"","justification":"","source":""},
+      {"id":5,"criterion":"EBITDA / Operating Income Trend","max":5,"score":0,"signal":"","justification":"","source":""},
+      {"id":6,"criterion":"R&D / Innovation Investment","max":5,"score":0,"signal":"","justification":"","source":""},
+      {"id":7,"criterion":"Market Position / Moat","max":5,"score":0,"signal":"","justification":"","source":""},
+      {"id":8,"criterion":"Valuation vs Growth (PEG)","max":5,"score":0,"signal":"","justification":"","source":""}
+    ],
+    "bonuses":[
+      {"id":"B1","criterion":"Revenue Visibility / Backlog","max":4,"score":0,"signal":"","justification":"","source":""},
+      {"id":"B2","criterion":"Customer Retention / NRR","max":3,"score":0,"signal":"","justification":"","source":""},
+      {"id":"B3","criterion":"FCF / Rule of 40","max":3,"score":0,"signal":"","justification":"","source":""}
+    ],
+    "baseTotal":0,"bonusTotal":0,"combinedTotal":0,"verdict":""
+  },
+  "valuation":[
+    {"metric":"Trailing P/E (TTM)","value":"","benchmark":"","signal":"","notes":"","source":""},
+    {"metric":"Forward P/E (NTM)","value":"","benchmark":"","signal":"","notes":"","source":""},
+    {"metric":"PEG Ratio","value":"","benchmark":"<1 undervalued; 1-2 fair","signal":"","notes":"","source":""},
+    {"metric":"EV/Revenue (LTM)","value":"","benchmark":"","signal":"","notes":"","source":""},
+    {"metric":"EV/Revenue (NTM)","value":"","benchmark":"","signal":"","notes":"","source":""},
+    {"metric":"EV/EBITDA","value":"","benchmark":"","signal":"","notes":"","source":""},
+    {"metric":"P/FCF","value":"","benchmark":"","signal":"","notes":"","source":""},
+    {"metric":"Price/Book","value":"","benchmark":"","signal":"","notes":"","source":""},
+    {"metric":"52-Week High / Low","value":"","benchmark":"","signal":"","notes":"","source":""},
+    {"metric":"Short Interest (% float)","value":"","benchmark":"","signal":"","notes":"","source":""},
+    {"metric":"Analyst Avg 12M Price Target","value":"","benchmark":"","signal":"","notes":"","source":""},
+    {"metric":"Analyst Buy %","value":"","benchmark":"","signal":"","notes":"","source":""},
+    {"metric":"Annual Dividend / Yield","value":"","benchmark":"","signal":"","notes":"","source":""}
+  ],
+  "financials":{
+    "fyLabel":"","fyPrevLabel":"","fyLatestLabel":"","quarterLabel":"",
+    "incomeStatement":[
+      {"metric":"Revenue ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},
+      {"metric":"Revenue Growth YoY","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},
+      {"metric":"Gross Profit ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},
+      {"metric":"Gross Margin %","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},
+      {"metric":"R&D Expenses ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},
+      {"metric":"S&M / Sales Expenses ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},
+      {"metric":"G&A Expenses ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},
+      {"metric":"Operating Income GAAP ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},
+      {"metric":"Operating Margin % GAAP","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},
+      {"metric":"Non-GAAP Op Income ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},
+      {"metric":"Non-GAAP Op Margin %","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},
+      {"metric":"Net Income GAAP ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},
+      {"metric":"Net Margin % GAAP","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},
+      {"metric":"GAAP Diluted EPS","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},
+      {"metric":"Non-GAAP Diluted EPS","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},
+      {"metric":"SBC Total ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""}
+    ],
+    "cashFlow":[
+      {"metric":"Operating Cash Flow ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},
+      {"metric":"Free Cash Flow ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},
+      {"metric":"FCF Margin %","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},
+      {"metric":"Capital Expenditures ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""}
+    ],
+    "balanceSheet":[
+      {"metric":"Total Assets ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},
+      {"metric":"Cash & Equivalents ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},
+      {"metric":"Short-Term Investments ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},
+      {"metric":"Total Debt ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},
+      {"metric":"Total Equity ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},
+      {"metric":"Deferred Revenue ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""},
+      {"metric":"Goodwill ($M)","fy_prev2":"","fy_prev":"","fy_latest":"","latest_q":"","trend":"","source":""}
+    ]
+  },
+  "growth":[
+    {"metric":"3-Year Revenue CAGR","value":"","signal":"","notes":"","benchmark":"","source":""},
+    {"metric":"5-Year Revenue CAGR","value":"","signal":"","notes":"","benchmark":"","source":""},
+    {"metric":"Latest FY Revenue Growth","value":"","signal":"","notes":"","benchmark":"","source":""},
+    {"metric":"Latest Quarter Revenue Growth","value":"","signal":"","notes":"","benchmark":"","source":""},
+    {"metric":"FY+1 Revenue Guidance (company)","value":"","signal":"","notes":"","benchmark":"","source":""},
+    {"metric":"FY+1 Revenue Consensus (analysts)","value":"","signal":"","notes":"","benchmark":"","source":""},
+    {"metric":"Non-GAAP Op Margin Trend","value":"","signal":"","notes":"","benchmark":"","source":""},
+    {"metric":"GAAP Operating Margin Latest","value":"","signal":"","notes":"","benchmark":"","source":""},
+    {"metric":"Rule of 40 Score","value":"","signal":"","notes":"","benchmark":">40 good; >55 exceptional","source":""},
+    {"metric":"Recurring / Subscription Revenue","value":"","signal":"","notes":"","benchmark":"","source":""},
+    {"metric":"Customer / ARR Growth","value":"","signal":"","notes":"","benchmark":"","source":""},
+    {"metric":"Renewal / Retention Rate","value":"","signal":"","notes":"","benchmark":"","source":""},
+    {"metric":"FCF Track Record","value":"","signal":"","notes":"","benchmark":"","source":""},
+    {"metric":"Key AI / Strategic Initiative","value":"","signal":"","notes":"","benchmark":"","source":""},
+    {"metric":"Macro tailwinds / headwinds","value":"","signal":"","notes":"","benchmark":"","source":""}
+  ],
+  "capitalStructure":[
+    {"metric":"Shares Outstanding","value":"","signal":"","notes":"","source":""},
+    {"metric":"Float","value":"","signal":"","notes":"","source":""},
+    {"metric":"Institutional Ownership %","value":"","signal":"","notes":"","source":""},
+    {"metric":"Top 5 Institutional Holders","value":"","signal":"","notes":"","source":""},
+    {"metric":"Short Interest / Days to Cover","value":"","signal":"","notes":"","source":""},
+    {"metric":"Buyback Program","value":"","signal":"","notes":"","source":""},
+    {"metric":"Remaining Buyback Authorization","value":"","signal":"","notes":"","source":""},
+    {"metric":"Insider Buying — Form 4 (6M)","value":"","signal":"","notes":"","source":""},
+    {"metric":"Insider Selling — Form 4 (6M)","value":"","signal":"","notes":"","source":""},
+    {"metric":"Unvested Equity Overhang","value":"","signal":"","notes":"","source":""},
+    {"metric":"Annual Dividend","value":"","signal":"","notes":"","source":""},
+    {"metric":"Long-Term Debt & Terms","value":"","signal":"","notes":"","source":""},
+    {"metric":"Credit Rating","value":"","signal":"","notes":"","source":""},
+    {"metric":"Revolving Credit Facility","value":"","signal":"","notes":"","source":""},
+    {"metric":"CEO","value":"","signal":"","notes":"","source":""},
+    {"metric":"CFO","value":"","signal":"","notes":"","source":""},
+    {"metric":"Analyst Coverage","value":"","signal":"","notes":"","source":""},
+    {"metric":"Proxy / Compensation (DEF 14A)","value":"","signal":"","notes":"","source":""}
+  ],
+  "risks":[
+    {"id":1,"factor":"","category":"","severity":"HIGH","assessment":"","mitigation":"","secRef":""},
+    {"id":2,"factor":"","category":"","severity":"HIGH","assessment":"","mitigation":"","secRef":""},
+    {"id":3,"factor":"","category":"","severity":"MEDIUM","assessment":"","mitigation":"","secRef":""},
+    {"id":4,"factor":"","category":"","severity":"MEDIUM","assessment":"","mitigation":"","secRef":""},
+    {"id":5,"factor":"","category":"","severity":"MEDIUM","assessment":"","mitigation":"","secRef":""},
+    {"id":6,"factor":"","category":"","severity":"MEDIUM","assessment":"","mitigation":"","secRef":""},
+    {"id":7,"factor":"","category":"","severity":"LOW","assessment":"","mitigation":"","secRef":""},
+    {"id":8,"factor":"","category":"","severity":"LOW","assessment":"","mitigation":"","secRef":""}
+  ],
+  "glossary":[
+    {"metric":"P/E Ratio (Trailing)","formula":"Market Price / TTM EPS","goodThreshold":"","actual":"","whyItMatters":""},
+    {"metric":"P/E Ratio (Forward)","formula":"Market Price / NTM EPS","goodThreshold":"","actual":"","whyItMatters":""},
+    {"metric":"PEG Ratio","formula":"Forward P/E / 5-Yr EPS CAGR %","goodThreshold":"<1 undervalued; 1-2 fair","actual":"","whyItMatters":"Adjusts P/E for growth rate"},
+    {"metric":"Net Profit Margin","formula":"Net Income / Revenue × 100","goodThreshold":">10% quality","actual":"","whyItMatters":"Profitability after all costs"},
+    {"metric":"Gross Margin","formula":"Gross Profit / Revenue × 100","goodThreshold":">50% strong","actual":"","whyItMatters":"Revenue remaining after COGS"},
+    {"metric":"Rule of 40","formula":"Revenue Growth % + FCF Margin %","goodThreshold":">40 good; >55 exceptional","actual":"","whyItMatters":"Gold standard growth/efficiency metric"},
+    {"metric":"Free Cash Flow","formula":"Operating Cash Flow − Capex","goodThreshold":"Positive; growing","actual":"","whyItMatters":"Cash after running the business"},
+    {"metric":"FCF Margin","formula":"Free Cash Flow / Revenue","goodThreshold":">20% strong","actual":"","whyItMatters":"Cash generation efficiency"},
+    {"metric":"P/FCF","formula":"Market Cap / LTM Free Cash Flow","goodThreshold":"","actual":"","whyItMatters":"Market price per $1 of FCF"},
+    {"metric":"EV/Revenue","formula":"Enterprise Value / Annual Revenue","goodThreshold":"","actual":"","whyItMatters":"EV-based revenue multiple"},
+    {"metric":"EV/EBITDA","formula":"Enterprise Value / EBITDA","goodThreshold":"","actual":"","whyItMatters":"Capital-structure-neutral profitability multiple"},
+    {"metric":"Short Interest","formula":"Shares short / Float","goodThreshold":"<5% low risk","actual":"","whyItMatters":"Bearish positioning and squeeze risk"}
+  ]
+}
+
+For signal fields use exactly one of: green, yellow, red.
+Cite every data point with its actual source.`;
+
+async function runEvaluation() {
+  const apiKey = document.getElementById('apiKeyInput').value.trim();
+  const ticker = document.getElementById('tickerInput').value.trim().toUpperCase();
+
+  if (!apiKey) {
+    alert('Please enter your Anthropic API key in the banner above.');
+    return;
+  }
+  if (!ticker) return;
+
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true;
+  resetPills();
+  showLoading(ticker);
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: document.getElementById('modelSelect').value,
+        max_tokens: 10000,
+        system: SYS_PROMPT,
+        messages: [{
+          role: 'user',
+          content: `Ticker: ${ticker}\n\nExecute the full 8-step research protocol. Search SEC EDGAR first, then market data, analyst consensus, government databases, news, insider filings, and institutional ownership. Populate every single field with real, sourced data.`
+        }],
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }]
+      })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      const msg = err.error?.message || `HTTP ${resp.status}`;
+    if (msg.includes('model')) throw new Error('Unknown model — try a different model in the dropdown. ' + msg);
+    if (msg.includes('401') || msg.includes('auth')) throw new Error('Invalid API key. Check your key at console.anthropic.com.');
+    if (msg.includes('web_search')) throw new Error('Web search not available on your API plan. ' + msg);
+    throw new Error(msg);
+    }
+
+    const data = await resp.json();
+    let raw = '';
+    for (const block of data.content) {
+      if (block.type === 'text') raw += block.text;
+    }
+
+    raw = raw.replace(/```json|```/g, '').trim();
+    const a = raw.indexOf('{'), b = raw.lastIndexOf('}');
+    if (a >= 0 && b >= 0) raw = raw.slice(a, b + 1);
+
+    currentData = JSON.parse(raw);
+    currentTab = 0;
+    litPills();
+    render();
+
+  } catch (err) {
+    document.getElementById('mainContent').innerHTML =
+      `<div class="error-box"><strong>Error:</strong> ${err.message}<br><br>
+      <small>Common causes: invalid API key, API key lacks web search access, or the ticker is not recognized. Make sure your key has the <code>web_search</code> tool enabled.</small></div>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function resetPills() {
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('lit'));
+}
+
+function litPills() {
+  document.querySelectorAll('.pill').forEach(p => p.classList.add('lit'));
+}
+
+function showLoading(ticker) {
+  let steps = STEPS.map((s, i) =>
+    `<div class="step-item" id="s${i}"><div class="step-icon">›</div><span>${s}</span></div>`
+  ).join('');
+
+  document.getElementById('mainContent').innerHTML = `
+    <div class="loading-panel">
+      <div class="loading-title">Researching <span style="color:var(--accent)">${ticker}</span></div>
+      <div class="loading-sub">Executing full multi-source research protocol across SEC, EDGAR, market data, and government databases</div>
+      <div class="step-list">${steps}</div>
+    </div>`;
+
+  let i = 0;
+  const iv = setInterval(() => {
+    const prev = document.getElementById('s' + (i - 1));
+    if (prev) { prev.classList.remove('active'); prev.classList.add('done'); prev.querySelector('.step-icon').textContent = '✓'; }
+    const cur = document.getElementById('s' + i);
+    if (cur) cur.classList.add('active');
+    i++;
+    if (i >= STEPS.length) clearInterval(iv);
+  }, 2000);
+}
+
+// ─── Render helpers ─────────────────────────────────────────────────
+function sig(s) {
+  const l = (s || '').toLowerCase();
+  if (l === 'green' || s.includes('🟢')) return '<span class="sig-green">●</span>';
+  if (l === 'yellow' || l === 'amber' || s.includes('🟡')) return '<span class="sig-amber">●</span>';
+  if (l === 'red' || s.includes('🔴')) return '<span class="sig-red">●</span>';
+  return s;
+}
+
+function kv(label, val) {
+  return `<div class="kv-card"><div class="kv-label">${label}</div><div class="kv-value">${val || '—'}</div></div>`;
+}
+
+function tbl(headers, rows) {
+  const ths = headers.map(h => `<th>${h}</th>`).join('');
+  const trs = rows.map(r => '<tr>' + r.map((c, i) => {
+    const cls = i === 0 ? ' class="metric-name"' : '';
+    return `<td${cls}>${c}</td>`;
+  }).join('') + '</tr>').join('');
+  return `<div class="table-wrap"><table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
+}
+
+function sourcesBlock(d) {
+  if (!d.sourcesUsed || !d.sourcesUsed.length) return '';
+  return `<div class="sources-block"><strong>Sources referenced:</strong><br>${d.sourcesUsed.join(' · ')}</div>`;
+}
+
+// ─── Render ─────────────────────────────────────────────────────────
+function render() {
+  const d = currentData;
+  const sc = d.scoring || {};
+  const pct = sc.combinedTotal ? Math.round(sc.combinedTotal / 50 * 100) : 0;
+  const rClass = (d.analystRating || '').toLowerCase().includes('buy') ? 'rating-buy'
+    : (d.analystRating || '').toLowerCase().includes('sell') ? 'rating-sell' : 'rating-hold';
+
+  const banner = `
+    <div class="ticker-banner">
+      <div>
+        <div class="ticker-symbol">${d.ticker}</div>
+        <div class="ticker-company">${d.company}</div>
+        <div class="ticker-meta">${d.exchange} · ${d.sector} · ${d.price} · ${d.marketCap}</div>
+      </div>
+      <div class="ticker-right">
+        <div class="score-chip"><span>${sc.combinedTotal || 0}</span>/50</div>
+        <div class="rating-badge ${rClass}">${d.analystRating || '—'}</div>
+      </div>
+    </div>`;
+
+  const tabBar = `<div class="tab-bar">${TABS.map((t, i) =>
+    `<button class="tab-btn${i === currentTab ? ' active' : ''}" onclick="switchTab(${i})">${t}</button>`
+  ).join('')}</div>`;
+
+  document.getElementById('mainContent').innerHTML =
+    banner + tabBar + `<div id="tabContent"></div>`;
+
+  renderTab();
+}
+
+function switchTab(i) {
+  currentTab = i;
+  document.querySelectorAll('.tab-btn').forEach((b, j) => b.classList.toggle('active', j === i));
+  renderTab();
+}
+
+function renderTab() {
+  const el = document.getElementById('tabContent');
+  const d = currentData;
+  switch (currentTab) {
+    case 0: el.innerHTML = tabSummary(d); break;
+    case 1: el.innerHTML = tabScoring(d); break;
+    case 2: el.innerHTML = tabValuation(d); break;
+    case 3: el.innerHTML = tabFinancials(d); break;
+    case 4: el.innerHTML = tabGrowth(d); break;
+    case 5: el.innerHTML = tabCapital(d); break;
+    case 6: el.innerHTML = tabRisks(d); break;
+    case 7: el.innerHTML = tabGlossary(d); break;
+  }
+}
+
+function tabSummary(d) {
+  const s = d.summary || {}, sc = d.scoring || {};
+  const pct = sc.combinedTotal ? Math.round(sc.combinedTotal / 50 * 100) : 0;
+  const vClass = pct >= 70 ? 'verdict-pill' : pct >= 50 ? 'verdict-pill' : 'verdict-pill';
+  const vColor = pct >= 70 ? 'var(--accent)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';
+  return `
+    <div class="section">
+      <div class="section-title">${s.fy_latest_label || 'Latest FY'}</div>
+      <div class="kv-grid">
+        ${kv('Revenue', s.fy_latest_revenue)}${kv('Net Income', s.fy_latest_netIncome)}${kv('EPS (diluted)', s.fy_latest_eps)}
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-title">Prior years</div>
+      <div class="kv-grid">
+        ${kv((s.fy_prev_label||'FY-1')+' Revenue', s.fy_prev_revenue)}
+        ${kv((s.fy_prev_label||'FY-1')+' Net Income', s.fy_prev_netIncome)}
+        ${kv((s.fy_prev_label||'FY-1')+' EPS', s.fy_prev_eps)}
+        ${kv((s.fy_prev2_label||'FY-2')+' Revenue', s.fy_prev2_revenue)}
+        ${kv((s.fy_prev2_label||'FY-2')+' Net Income', s.fy_prev2_netIncome)}
+        ${kv((s.fy_prev2_label||'FY-2')+' EPS', s.fy_prev2_eps)}
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-title">${s.latest_q_label || 'Latest Quarter'}</div>
+      <div class="kv-grid">
+        ${kv('Revenue', s.latest_quarter_revenue)}${kv('Net Income', s.latest_quarter_netIncome)}${kv('EPS (diluted)', s.latest_quarter_eps)}
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-title">Balance sheet & ownership</div>
+      <div class="kv-grid">
+        ${kv('Cash', s.cash)}${kv('Debt', s.debt)}${kv('Net Cash', s.netCash)}
+        ${kv('FCF', s.fcf)}${kv('TAM (est)', s.tam)}${kv('Employees', s.employees)}
+        ${kv('RPO', s.rpo)}${kv('RPO Growth', s.rpo_growth)}${kv('Renewal Rate', s.renewalRate)}
+        ${kv('Institutional Own.', s.institutionalOwnership)}${kv('Short Interest', s.shortInterest)}${kv('Insider Activity', s.insiderActivity)}
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-title">Overall evaluation score</div>
+      <div class="score-row">
+        <div>
+          <div class="score-big">${sc.combinedTotal || 0}</div>
+          <div class="score-label">out of 50 points</div>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" style="width:${pct}%"></div>
+        </div>
+        <div class="verdict-pill" style="background:rgba(0,0,0,0.3);border:1px solid ${vColor};color:${vColor};font-family:var(--font-mono);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;padding:6px 16px;border-radius:100px;">${sc.verdict || '—'}</div>
+      </div>
+    </div>
+    ${sourcesBlock(d)}`;
+}
+
+function tabScoring(d) {
+  const sc = d.scoring || {};
+  const cRows = (sc.criteria || []).map(c => [c.id, c.criterion, c.max, `<strong>${c.score}</strong>`, sig(c.signal), c.justification, `<span style="font-size:11px;color:var(--text3)">${c.source}</span>`]);
+  const bRows = (sc.bonuses || []).map(b => [b.id, b.criterion, b.max, `<strong>${b.score}</strong>`, sig(b.signal), b.justification, `<span style="font-size:11px;color:var(--text3)">${b.source}</span>`]);
+  const headers = ['#', 'Criterion', 'Max', 'Score', '●', 'Justification', 'Source'];
+  return `
+    <div class="section">
+      <div class="section-title">8-Criteria base score</div>
+      ${tbl(headers, cRows)}
+      <div style="margin-top:8px;padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);font-family:var(--font-mono);font-size:13px;color:var(--text2)">
+        Base total: <strong style="color:var(--accent)">${sc.baseTotal} / 40</strong>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-title">Sector bonus criteria</div>
+      ${tbl(headers, bRows)}
+      <div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap">
+        <div style="padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);font-family:var(--font-mono);font-size:13px;color:var(--text2)">
+          Bonus: <strong style="color:var(--accent)">${sc.bonusTotal} / 10</strong>
+        </div>
+        <div style="padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);font-family:var(--font-mono);font-size:13px;color:var(--text2)">
+          Combined: <strong style="color:var(--accent)">${sc.combinedTotal} / 50</strong> — ${sc.verdict}
+        </div>
+      </div>
+    </div>`;
+}
+
+function tabValuation(d) {
+  const rows = (d.valuation || []).map(r => [r.metric, r.value, `<span style="font-size:11px;color:var(--text3)">${r.benchmark}</span>`, sig(r.signal), r.notes, `<span style="font-size:11px;color:var(--text3)">${r.source}</span>`]);
+  return `<div class="section">${tbl(['Metric', 'Value', 'Benchmark', '●', 'Notes', 'Source'], rows)}</div>`;
+}
+
+function tabFinancials(d) {
+  const f = d.financials || {};
+  const fy2 = f.fyLabel || 'FY N-2';
+  const fy1 = f.fyPrevLabel || 'FY N-1';
+  const fy0 = f.fyLatestLabel || 'FY Latest';
+  const q = f.quarterLabel || 'Latest Q';
+  const hdrs = ['Metric', fy2, fy1, fy0, q, 'Trend', 'Source'];
+  const rows = arr => (arr || []).map(r => [r.metric, r.fy_prev2||'—', r.fy_prev||'—', r.fy_latest||'—', r.latest_q||'—', r.trend||'', `<span style="font-size:11px;color:var(--text3)">${r.source||''}</span>`]);
+  return `
+    <div class="section"><div class="section-title">Income statement</div>${tbl(hdrs, rows(f.incomeStatement))}</div>
+    <div class="section"><div class="section-title">Cash flow statement</div>${tbl(hdrs, rows(f.cashFlow))}</div>
+    <div class="section"><div class="section-title">Balance sheet</div>${tbl(hdrs, rows(f.balanceSheet))}</div>`;
+}
+
+function tabGrowth(d) {
+  const rows = (d.growth || []).map(r => [r.metric, r.value, sig(r.signal), r.notes, `<span style="font-size:11px;color:var(--text3)">${r.benchmark}</span>`, `<span style="font-size:11px;color:var(--text3)">${r.source}</span>`]);
+  return `<div class="section">${tbl(['Metric', 'Value', '●', 'Notes', 'Benchmark', 'Source'], rows)}</div>`;
+}
+
+function tabCapital(d) {
+  const rows = (d.capitalStructure || []).map(r => [r.metric, r.value, sig(r.signal), r.notes, `<span style="font-size:11px;color:var(--text3)">${r.source}</span>`]);
+  return `<div class="section">${tbl(['Metric', 'Value', '●', 'Notes', 'Source'], rows)}</div>`;
+}
+
+function tabRisks(d) {
+  const rows = (d.risks || []).map(r => {
+    const sev = (r.severity || '').toUpperCase();
+    const cls = sev === 'HIGH' ? 'risk-high' : sev === 'MEDIUM' ? 'risk-medium' : 'risk-low';
+    return [r.id, `<strong>${r.factor}</strong>`, r.category, `<span class="risk-badge ${cls}">${r.severity}</span>`, r.assessment, r.mitigation, `<span style="font-size:11px;color:var(--text3)">${r.secRef||''}</span>`];
+  });
+  return `<div class="section">${tbl(['#', 'Risk Factor', 'Category', 'Severity', 'Assessment', 'Mitigation', 'SEC Ref'], rows)}</div>`;
+}
+
+function tabGlossary(d) {
+  const rows = (d.glossary || []).map(r => [r.metric, `<span style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">${r.formula}</span>`, r.goodThreshold, `<strong>${r.actual||'—'}</strong>`, r.whyItMatters]);
+  return `<div class="section">${tbl(['Metric', 'Formula', 'Good Threshold', 'This Stock', 'Why It Matters'], rows)}</div>`;
+}
+</script>
+</body>
+</html>
