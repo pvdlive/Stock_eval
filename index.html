@@ -734,17 +734,14 @@ const STEPS = [
   'Synthesising all sources into 8-dimension evaluation'
 ];
 
-const SYS_PROMPT = `You are a senior equity research analyst with web search access. Produce an exhaustive, deeply sourced stock evaluation.
+const SYS_PROMPT = `You are a senior equity research analyst. Produce a comprehensive stock evaluation using web search. Be efficient — use a maximum of 5 targeted searches covering: (1) SEC filings + financials, (2) current price + analyst targets, (3) recent earnings + guidance, (4) insider transactions + institutional ownership, (5) key risks + news.
 
-MANDATORY RESEARCH PROTOCOL — search ALL of these before populating any field:
-1. SEC EDGAR (sec.gov) — latest 10-K, 10-Q, 8-K, DEF 14A, Form 4 insider transactions
-2. Financial statements — exact figures from filing tables (no estimates)
-3. Market data — current price, 52-week high/low, market cap, short interest, volume
-4. Analyst consensus — S&P Global, Refinitiv, Bloomberg, FactSet (price targets, EPS estimates, buy/hold/sell)
-5. Government & macro — BLS, Census.gov, Federal Reserve, FRED, relevant regulators (FDA/FCC/FTC/DOD/GSA per sector)
-6. News & management commentary — latest earnings call transcript, press releases, guidance, M&A
-7. Form 4 insider transactions — last 6 months, flag open-market CEO/CFO buys
-8. Institutional 13F — top holders, % institutional, recent changes, short interest % of float
+Use web search efficiently — no more than 5 searches total. Cover:
+1. Latest 10-K/10-Q financials + SEC filings
+2. Current stock price, market cap, analyst price targets and ratings
+3. Most recent earnings call results and forward guidance
+4. Insider Form 4 transactions and institutional ownership
+5. Key risks, recent news, strategic developments
 
 Return ONLY valid JSON. No markdown. No backticks. No preamble.
 
@@ -908,7 +905,7 @@ async function runEvaluation() {
 
   try {
     // WORKER_URL is replaced with your actual Cloudflare Worker URL after deployment
-    const WORKER_URL = 'https://stockeval.pascalvandooren.workers.dev';
+    const WORKER_URL = 'YOUR_WORKER_URL_HERE';
 
     const resp = await fetch(WORKER_URL, {
       method: 'POST',
@@ -917,7 +914,7 @@ async function runEvaluation() {
       },
       body: JSON.stringify({
         model: document.getElementById('modelSelect').value,
-        max_tokens: 10000,
+        max_tokens: 6000,
         system: SYS_PROMPT,
         messages: [{
           role: 'user',
@@ -934,7 +931,7 @@ async function runEvaluation() {
     if (msg.includes('model')) throw new Error('Unknown model — try a different model in the dropdown. ' + msg);
     if (msg.includes('401') || msg.includes('auth')) throw new Error('Invalid API key in worker — update your ANTHROPIC_API_KEY secret.');
     if (msg.includes('web_search')) throw new Error('Web search not available on your Anthropic plan. ' + msg);
-    if (msg.includes('https://stockeval.pascalvandooren.workers.dev')) throw new Error('Worker URL not set — edit index.html and replace https://stockeval.pascalvandooren.workers.dev with your Cloudflare Worker URL.');
+    if (msg.includes('YOUR_WORKER_URL_HERE')) throw new Error('Worker URL not set — edit index.html and replace YOUR_WORKER_URL_HERE with your Cloudflare Worker URL.');
     throw new Error(msg);
     }
 
