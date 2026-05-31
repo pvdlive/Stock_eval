@@ -936,7 +936,7 @@ async function runEvaluation() {
     const model = document.getElementById('modelSelect').value;
 
     async function ask(userMsg, useSearch) {
-      const body = { model, max_tokens: 3000, messages: [{ role: 'user', content: userMsg }] };
+      const body = { model, max_tokens: 4000, messages: [{ role: 'user', content: userMsg }] };
       if (useSearch) {
         body.tools = [{
           type: 'web_search_20250305',
@@ -967,8 +967,17 @@ async function runEvaluation() {
       raw = raw.replace(/```json|```/g, '').trim();
       const a = raw.indexOf('{'), b = raw.lastIndexOf('}');
       if (a >= 0 && b >= 0) raw = raw.slice(a, b + 1);
-      try { return JSON.parse(raw); }
-      catch(e) { throw new Error('Parse error — please try again.'); }
+      // Attempt to repair truncated JSON
+      try { return JSON.parse(raw); } catch(e) {}
+      // Try closing open brackets
+      let fixed = raw.replace(/,\s*$/, '');
+      const opens = (fixed.match(/\[/g)||[]).length - (fixed.match(/\]/g)||[]).length;
+      const braces = (fixed.match(/\{/g)||[]).length - (fixed.match(/\}/g)||[]).length;
+      for (let i=0; i<opens; i++) fixed += ']';
+      for (let i=0; i<braces; i++) fixed += '}';
+      try { return JSON.parse(fixed); } catch(e) {
+        throw new Error('Parse error — please try again.');
+      }
     }
 
     // Phase 1: Core info + scoring + valuation + risks (with web search)
