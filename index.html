@@ -964,6 +964,8 @@ async function runEvaluation() {
       }
       let raw = '';
       for (const b of data.content) { if (b.type === 'text') raw += b.text; }
+      console.log('RAW RESPONSE:', raw.substring(0, 500));
+      console.log('CONTENT BLOCKS:', JSON.stringify(data.content.map(b => b.type)));
       raw = raw.replace(/```json|```/g, '').trim();
       const a = raw.indexOf('{'), b = raw.lastIndexOf('}');
       if (a >= 0 && b >= 0) raw = raw.slice(a, b + 1);
