@@ -937,7 +937,13 @@ async function runEvaluation() {
 
     async function ask(userMsg, useSearch) {
       const body = { model, max_tokens: 3000, messages: [{ role: 'user', content: userMsg }] };
-      if (useSearch) body.tools = [{ type: 'web_search_20250305', name: 'web_search' }];
+      if (useSearch) {
+        body.tools = [{
+          type: 'web_search_20250305',
+          name: 'web_search',
+          max_uses: 3
+        }];
+      }
       const r = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -967,7 +973,7 @@ async function runEvaluation() {
 
     // Phase 1: Core info + scoring + valuation + risks (with web search)
     const p1 = await ask(
-      'Research stock ticker ' + ticker + ' using web search. Return ONLY this JSON with real data, no markdown:\n' +
+      'You have a maximum of 3 web searches. Use them wisely: 1 search for current price/analyst data, 1 for latest earnings/financials, 1 for risks/news. For ticker ' + ticker + ', return ONLY this JSON, no markdown:\n' +
       '{"ticker":"","company":"","exchange":"","sector":"","price":"","marketCap":"","analystRating":"","sourcesUsed":[],' +
       '"summary":{"fy_latest_label":"","fy_prev_label":"","fy_prev2_label":"","latest_q_label":"","fy_latest_revenue":"","fy_latest_netIncome":"","fy_latest_eps":"","fy_prev_revenue":"","fy_prev_netIncome":"","fy_prev_eps":"","fy_prev2_revenue":"","fy_prev2_netIncome":"","fy_prev2_eps":"","latest_quarter_revenue":"","latest_quarter_netIncome":"","latest_quarter_eps":"","cash":"","debt":"","netCash":"","fcf":"","employees":"","institutionalOwnership":"","shortInterest":"","insiderActivity":"","tam":"","rpo":"","rpo_growth":"","renewalRate":"","subscriptionMix":"","topCustomerPct":""},' +
       '"scoring":{"criteria":[{"id":1,"criterion":"EPS Growth Next 5 Years","max":5,"score":0,"signal":"green","justification":"","source":""},{"id":2,"criterion":"Revenue Growth Consistency","max":5,"score":0,"signal":"green","justification":"","source":""},{"id":3,"criterion":"Net Profit Margin","max":5,"score":0,"signal":"green","justification":"","source":""},{"id":4,"criterion":"Earnings Beat Frequency","max":5,"score":0,"signal":"green","justification":"","source":""},{"id":5,"criterion":"EBITDA Trend","max":5,"score":0,"signal":"green","justification":"","source":""},{"id":6,"criterion":"R&D Investment","max":5,"score":0,"signal":"green","justification":"","source":""},{"id":7,"criterion":"Market Moat","max":5,"score":0,"signal":"green","justification":"","source":""},{"id":8,"criterion":"PEG Valuation","max":5,"score":0,"signal":"green","justification":"","source":""}],"bonuses":[{"id":"B1","criterion":"Revenue Visibility","max":4,"score":0,"signal":"green","justification":"","source":""},{"id":"B2","criterion":"Customer Retention","max":3,"score":0,"signal":"green","justification":"","source":""},{"id":"B3","criterion":"FCF Rule of 40","max":3,"score":0,"signal":"green","justification":"","source":""}],"baseTotal":0,"bonusTotal":0,"combinedTotal":0,"verdict":""},' +
