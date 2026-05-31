@@ -1327,423 +1327,597 @@ function downloadPDF() {
   const d = currentData;
   const sc = d.scoring || {};
   const pageW = 210;
-  const margin = 14;
+  const margin = 20;
   const colW = pageW - margin * 2;
   let y = 0;
 
-  // Colors
-  const dark = [10, 10, 15];
-  const accent = [200, 240, 96];
-  const white = [255, 255, 255];
-  const gray = [144, 144, 168];
-  const lightBg = [26, 26, 36];
-  const borderGray = [40, 40, 52];
+  // ── Color palette (executive brief) ────────────────────────────
+  const black    = [15, 15, 15];
+  const darkGray = [60, 60, 60];
+  const midGray  = [120, 120, 120];
+  const lightGray= [200, 200, 200];
+  const veryLight= [245, 245, 245];
+  const white    = [255, 255, 255];
+  const navy     = [20, 40, 80];
+  const green    = [34, 139, 34];
+  const amber    = [180, 120, 0];
+  const red      = [180, 40, 40];
+  const accentBlue = [30, 80, 160];
 
   function newPage() {
     doc.addPage();
-    y = 14;
+    y = 22;
+    // page border line
+    doc.setDrawColor(...lightGray);
+    doc.setLineWidth(0.3);
+    doc.line(margin, 18, pageW - margin, 18);
   }
 
   function checkY(needed) {
-    if (y + needed > 280) newPage();
-  }
-
-  function sectionHeader(title) {
-    checkY(12);
-    doc.setFillColor(...lightBg);
-    doc.roundedRect(margin, y, colW, 8, 2, 2, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(...gray);
-    doc.text(title.toUpperCase(), margin + 3, y + 5.5);
-    y += 11;
-  }
-
-  function kvRow(label, value, col = 0, cols = 3) {
-    const w = colW / cols;
-    const x = margin + col * w;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(...gray);
-    doc.text(label, x + 2, y + 3);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(...white);
-    const val = String(value || '—').substring(0, 28);
-    doc.text(val, x + 2, y + 8);
+    if (y + needed > 272) newPage();
   }
 
   function sigColor(s) {
     const l = (s || '').toLowerCase();
-    if (l === 'green') return [74, 222, 128];
-    if (l === 'yellow' || l === 'amber') return [251, 191, 36];
-    if (l === 'red') return [248, 113, 113];
-    return gray;
+    if (l === 'green') return green;
+    if (l === 'yellow' || l === 'amber') return amber;
+    if (l === 'red') return red;
+    return midGray;
   }
 
-  // ── Cover page ───────────────────────────────────────────────────
-  doc.setFillColor(...dark);
-  doc.rect(0, 0, 210, 297, 'F');
+  function sigLabel(s) {
+    const l = (s || '').toLowerCase();
+    if (l === 'green') return '▲ Positive';
+    if (l === 'yellow' || l === 'amber') return '◆ Neutral';
+    if (l === 'red') return '▼ Negative';
+    return s || '';
+  }
 
-  // Accent bar
-  doc.setFillColor(...accent);
-  doc.rect(0, 0, 210, 3, 'F');
+  // ── Section heading ─────────────────────────────────────────────
+  function sectionHeading(title) {
+    checkY(14);
+    doc.setFillColor(...navy);
+    doc.rect(margin, y, colW, 7, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...white);
+    doc.text(title.toUpperCase(), margin + 3, y + 5);
+    y += 10;
+  }
 
-  // Logo area
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(...gray);
-  doc.text('EQUITY ANALYST', margin, 20);
+  function subHeading(title) {
+    checkY(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...navy);
+    doc.text(title, margin, y);
+    doc.setDrawColor(...accentBlue);
+    doc.setLineWidth(0.5);
+    doc.line(margin, y + 1.5, margin + doc.getTextWidth(title), y + 1.5);
+    y += 6;
+  }
 
-  // Ticker
-  doc.setFontSize(48);
-  doc.setTextColor(...accent);
-  doc.text(d.ticker || '', margin, 55);
+  function kvPair(label, value, x, w) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...midGray);
+    doc.text(label, x, y);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...black);
+    const val = String(value || '—').substring(0, 30);
+    doc.text(val, x, y + 4.5);
+  }
 
-  // Company
-  doc.setFontSize(18);
-  doc.setTextColor(...white);
-  doc.text(d.company || '', margin, 67);
+  function rule() {
+    doc.setDrawColor(...lightGray);
+    doc.setLineWidth(0.2);
+    doc.line(margin, y, pageW - margin, y);
+    y += 3;
+  }
 
-  // Meta
-  doc.setFontSize(10);
-  doc.setTextColor(...gray);
-  doc.text([d.exchange + ' · ' + d.sector, d.price + ' · Market Cap: ' + d.marketCap].join('   '), margin, 78);
+  // ════════════════════════════════════════════════════════════════
+  // COVER PAGE
+  // ════════════════════════════════════════════════════════════════
+  // Top bar
+  doc.setFillColor(...navy);
+  doc.rect(0, 0, 210, 28, 'F');
 
-  // Score box
-  doc.setFillColor(...lightBg);
-  doc.roundedRect(margin, 90, 80, 30, 3, 3, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(32);
-  doc.setTextColor(...accent);
-  doc.text(String(sc.combinedTotal || 0), margin + 6, 112);
-  doc.setFontSize(14);
-  doc.setTextColor(...gray);
-  doc.text('/ 50', margin + 28, 112);
-  doc.setFontSize(10);
-  doc.setTextColor(...white);
-  doc.text(sc.verdict || '', margin + 6, 118);
-
-  // Rating badge
-  doc.setFillColor(...lightBg);
-  doc.roundedRect(margin + 86, 90, 50, 30, 3, 3, 'F');
-  doc.setFontSize(10);
-  doc.setTextColor(...gray);
-  doc.text('ANALYST RATING', margin + 88, 100);
-  doc.setFontSize(14);
-  doc.setTextColor(...white);
-  doc.text(d.analystRating || '—', margin + 88, 112);
-
-  // Date
+  // Firm name
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
-  doc.setTextColor(...gray);
-  doc.text('Generated: ' + new Date().toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'}), margin, 135);
-  doc.text('AI-Powered · SEC EDGAR · Live Market Data · Not Financial Advice', margin, 141);
+  doc.setTextColor(180, 200, 240);
+  doc.text('EQUITY ANALYST  ·  AI-POWERED RESEARCH', margin, 10);
+
+  // Report title
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(...white);
+  doc.text('EQUITY EVALUATION REPORT', margin, 20);
+
+  // Date right-aligned
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(180, 200, 240);
+  const dateStr = new Date().toLocaleDateString('en-US', {year:'numeric', month:'long', day:'numeric'});
+  doc.text(dateStr, pageW - margin, 20, { align: 'right' });
+
+  y = 40;
+
+  // Company block
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(28);
+  doc.setTextColor(...navy);
+  doc.text(d.ticker || '', margin, y);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(14);
+  doc.setTextColor(...darkGray);
+  doc.text(d.company || '', margin, y + 10);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(...midGray);
+  doc.text((d.exchange || '') + '  ·  ' + (d.sector || '') + '  ·  ' + (d.price || '') + '  ·  Market Cap: ' + (d.marketCap || ''), margin, y + 17);
+
+  y += 26;
+  rule();
+
+  // Score + Rating boxes
+  // Score box
+  doc.setFillColor(...veryLight);
+  doc.setDrawColor(...lightGray);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(margin, y, 78, 28, 2, 2, 'FD');
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...midGray);
+  doc.text('OVERALL SCORE', margin + 4, y + 7);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(30);
+  doc.setTextColor(...navy);
+  doc.text(String(sc.combinedTotal || 0), margin + 4, y + 20);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(12);
+  doc.setTextColor(...midGray);
+  doc.text('/ 50', margin + 22, y + 20);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...darkGray);
+  doc.text(sc.verdict || '', margin + 4, y + 26);
+
+  // Rating box
+  doc.setFillColor(...veryLight);
+  doc.roundedRect(margin + 84, y, 78, 28, 2, 2, 'FD');
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...midGray);
+  doc.text('ANALYST CONSENSUS', margin + 88, y + 7);
+
+  const rating = (d.analystRating || '').toUpperCase();
+  const rCol = rating.includes('BUY') ? green : rating.includes('SELL') ? red : amber;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.setTextColor(...rCol);
+  doc.text(d.analystRating || '—', margin + 88, y + 20);
+
+  y += 34;
+  rule();
+
+  // Key snapshot row
+  const s = d.summary || {};
+  const snap = [
+    ['Revenue (Latest FY)', s.fy_latest_revenue],
+    ['Net Income', s.fy_latest_netIncome],
+    ['EPS (Diluted)', s.fy_latest_eps],
+    ['Free Cash Flow', s.fcf],
+    ['Cash', s.cash],
+    ['Net Cash / Debt', s.netCash],
+  ];
+  const snapW = colW / 3;
+  for (let i = 0; i < snap.length; i++) {
+    const col = i % 3;
+    if (col === 0 && i > 0) y += 14;
+    kvPair(snap[i][0], snap[i][1], margin + col * snapW, snapW);
+  }
+  y += 16;
+  rule();
 
   // Sources
   if (d.sourcesUsed && d.sourcesUsed.length) {
+    doc.setFont('helvetica', 'italic');
     doc.setFontSize(7);
-    doc.setTextColor(...gray);
-    doc.text('Sources: ' + d.sourcesUsed.slice(0,5).join(' · '), margin, 152, { maxWidth: colW });
+    doc.setTextColor(...midGray);
+    const srcText = 'Sources: ' + d.sourcesUsed.slice(0, 6).join('  ·  ');
+    doc.text(srcText, margin, y, { maxWidth: colW });
+    y += 8;
   }
 
-  // ── Page 2: Summary ──────────────────────────────────────────────
-  newPage();
-  const s = d.summary || {};
+  // Disclaimer
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(6.5);
+  doc.setTextColor(...midGray);
+  doc.text('This report is AI-generated for informational purposes only and does not constitute financial advice. Always verify data independently before making investment decisions.', margin, y, { maxWidth: colW });
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(...accent);
-  doc.text('1. Summary', margin, y); y += 8;
-
-  sectionHeader('Latest Full Year — ' + (s.fy_latest_label || ''));
-  doc.setFillColor(...lightBg);
-  doc.roundedRect(margin, y, colW, 16, 2, 2, 'F');
-  kvRow('Revenue', s.fy_latest_revenue, 0, 3);
-  kvRow('Net Income', s.fy_latest_netIncome, 1, 3);
-  kvRow('EPS (Diluted)', s.fy_latest_eps, 2, 3);
-  y += 19;
-
-  sectionHeader('Prior Years');
-  doc.setFillColor(...lightBg);
-  doc.roundedRect(margin, y, colW, 16, 2, 2, 'F');
-  kvRow((s.fy_prev_label||'FY-1') + ' Revenue', s.fy_prev_revenue, 0, 3);
-  kvRow((s.fy_prev_label||'FY-1') + ' Net Inc.', s.fy_prev_netIncome, 1, 3);
-  kvRow((s.fy_prev2_label||'FY-2') + ' Revenue', s.fy_prev2_revenue, 2, 3);
-  y += 19;
-
-  sectionHeader('Balance Sheet & Key Metrics');
-  doc.setFillColor(...lightBg);
-  doc.roundedRect(margin, y, colW, 32, 2, 2, 'F');
-  kvRow('Cash', s.cash, 0, 3);
-  kvRow('Debt', s.debt, 1, 3);
-  kvRow('Net Cash', s.netCash, 2, 3);
-  y += 16;
-  kvRow('FCF', s.fcf, 0, 3);
-  kvRow('Employees', s.employees, 1, 3);
-  kvRow('TAM (est)', s.tam, 2, 3);
-  y += 19;
-
-  sectionHeader('Ownership');
-  doc.setFillColor(...lightBg);
-  doc.roundedRect(margin, y, colW, 16, 2, 2, 'F');
-  kvRow('Institutional Own.', s.institutionalOwnership, 0, 3);
-  kvRow('Short Interest', s.shortInterest, 1, 3);
-  kvRow('Insider Activity', s.insiderActivity, 2, 3);
-  y += 22;
-
-  // ── Page 3: Scoring ──────────────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════
+  // PAGE 2: SCORING
+  // ════════════════════════════════════════════════════════════════
   newPage();
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(...accent);
-  doc.text('2. Scoring Framework', margin, y); y += 8;
+  doc.setFontSize(13);
+  doc.setTextColor(...navy);
+  doc.text('Scoring Framework', margin, y); y += 8;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(...midGray);
+  doc.text(d.ticker + ' — ' + d.company + '  |  Combined Score: ' + (sc.combinedTotal||0) + '/50  |  ' + (sc.verdict||''), margin, y); y += 7;
+  rule();
 
   const criteria = sc.criteria || [];
   if (criteria.length) {
     doc.autoTable({
       startY: y,
       margin: { left: margin, right: margin },
-      head: [['#', 'Criterion', 'Max', 'Score', '●', 'Justification']],
-      body: criteria.map(c => [c.id, c.criterion, c.max, c.score, c.signal ? '●' : '', (c.justification||'').substring(0,60)]),
-      theme: 'plain',
-      styles: { fontSize: 7, textColor: [200,200,216], fillColor: [10,10,15], cellPadding: 2 },
-      headStyles: { fontSize: 7, textColor: gray, fillColor: lightBg, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [18,18,28] },
+      head: [['#', 'Criterion', 'Max', 'Score', 'Signal', 'Justification', 'Source']],
+      body: criteria.map(c => [c.id, c.criterion, c.max, c.score, sigLabel(c.signal), (c.justification||'').substring(0,65), (c.source||'').substring(0,25)]),
+      theme: 'grid',
+      styles: { fontSize: 7.5, textColor: black, fillColor: white, cellPadding: 2.5, lineColor: lightGray, lineWidth: 0.2 },
+      headStyles: { fontSize: 7.5, textColor: white, fillColor: navy, fontStyle: 'bold', cellPadding: 3 },
+      alternateRowStyles: { fillColor: veryLight },
       columnStyles: {
-        0: { cellWidth: 8 }, 1: { cellWidth: 55 }, 2: { cellWidth: 12 },
-        3: { cellWidth: 12, fontStyle: 'bold' }, 4: { cellWidth: 8 }, 5: { cellWidth: 'auto' }
+        0: { cellWidth: 8, halign: 'center' },
+        1: { cellWidth: 48, fontStyle: 'bold' },
+        2: { cellWidth: 12, halign: 'center' },
+        3: { cellWidth: 12, halign: 'center', fontStyle: 'bold' },
+        4: { cellWidth: 22 },
+        5: { cellWidth: 'auto' },
+        6: { cellWidth: 28, fontSize: 6.5, textColor: midGray }
       },
       didParseCell: (data) => {
         if (data.column.index === 4 && data.section === 'body') {
           const sig = criteria[data.row.index] && criteria[data.row.index].signal;
           data.cell.styles.textColor = sigColor(sig);
+          data.cell.styles.fontStyle = 'bold';
+        }
+        if (data.column.index === 3 && data.section === 'body') {
+          data.cell.styles.textColor = navy;
         }
       }
     });
-    y = doc.lastAutoTable.finalY + 4;
+    y = doc.lastAutoTable.finalY + 5;
   }
 
+  // Bonus criteria
   const bonuses = sc.bonuses || [];
   if (bonuses.length) {
-    checkY(20);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(...gray);
-    doc.text('BONUS CRITERIA', margin, y); y += 4;
+    checkY(30);
+    subHeading('Bonus Criteria');
     doc.autoTable({
       startY: y,
       margin: { left: margin, right: margin },
-      head: [['#', 'Criterion', 'Max', 'Score', 'Justification']],
-      body: bonuses.map(b => [b.id, b.criterion, b.max, b.score, (b.justification||'').substring(0,70)]),
-      theme: 'plain',
-      styles: { fontSize: 7, textColor: [200,200,216], fillColor: [10,10,15], cellPadding: 2 },
-      headStyles: { fontSize: 7, textColor: gray, fillColor: lightBg, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [18,18,28] }
-    });
-    y = doc.lastAutoTable.finalY + 4;
-  }
-
-  checkY(16);
-  doc.setFillColor(...lightBg);
-  doc.roundedRect(margin, y, colW, 12, 2, 2, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(...white);
-  doc.text('Combined Score: ' + (sc.combinedTotal||0) + ' / 50   —   ' + (sc.verdict||''), margin + 4, y + 8);
-  y += 16;
-
-  // ── Page 4: Valuation ────────────────────────────────────────────
-  newPage();
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(...accent);
-  doc.text('3. Valuation', margin, y); y += 8;
-
-  const valRows = (d.valuation || []).map(r => [r.metric, r.value, r.signal ? '●' : '', r.notes || '']);
-  if (valRows.length) {
-    doc.autoTable({
-      startY: y,
-      margin: { left: margin, right: margin },
-      head: [['Metric', 'Value', '●', 'Notes']],
-      body: valRows,
-      theme: 'plain',
-      styles: { fontSize: 8, textColor: [200,200,216], fillColor: [10,10,15], cellPadding: 2.5 },
-      headStyles: { fontSize: 7, textColor: gray, fillColor: lightBg, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [18,18,28] },
-      columnStyles: { 0: { cellWidth: 55, fontStyle: 'bold' }, 1: { cellWidth: 30 }, 2: { cellWidth: 10 }, 3: { cellWidth: 'auto' } },
+      head: [['#', 'Criterion', 'Max', 'Score', 'Signal', 'Justification']],
+      body: bonuses.map(b => [b.id, b.criterion, b.max, b.score, sigLabel(b.signal), (b.justification||'').substring(0,80)]),
+      theme: 'grid',
+      styles: { fontSize: 7.5, textColor: black, fillColor: white, cellPadding: 2.5, lineColor: lightGray, lineWidth: 0.2 },
+      headStyles: { fontSize: 7.5, textColor: white, fillColor: [60, 90, 140], fontStyle: 'bold', cellPadding: 3 },
+      alternateRowStyles: { fillColor: veryLight },
+      columnStyles: {
+        0: { cellWidth: 8, halign: 'center' },
+        1: { cellWidth: 50, fontStyle: 'bold' },
+        2: { cellWidth: 12, halign: 'center' },
+        3: { cellWidth: 12, halign: 'center', fontStyle: 'bold' },
+        4: { cellWidth: 22 },
+        5: { cellWidth: 'auto' }
+      },
       didParseCell: (data) => {
-        if (data.column.index === 2 && data.section === 'body') {
-          const sig = (d.valuation||[])[data.row.index] && (d.valuation||[])[data.row.index].signal;
+        if (data.column.index === 4 && data.section === 'body') {
+          const sig = bonuses[data.row.index] && bonuses[data.row.index].signal;
           data.cell.styles.textColor = sigColor(sig);
+          data.cell.styles.fontStyle = 'bold';
         }
       }
-    });
-    y = doc.lastAutoTable.finalY + 8;
-  }
-
-  // ── Page 5: Financials ───────────────────────────────────────────
-  newPage();
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(...accent);
-  doc.text('4. Financial Statements', margin, y); y += 8;
-
-  const f = d.financials || {};
-  const fHdrs = ['Metric', f.fyLabel||'FY N-2', f.fyPrevLabel||'FY N-1', f.fyLatestLabel||'FY Latest', f.quarterLabel||'Latest Q', 'Trend'];
-
-  function finTable(label, rows) {
-    if (!rows || !rows.length) return;
-    checkY(20);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(...gray);
-    doc.text(label.toUpperCase(), margin, y); y += 4;
-    doc.autoTable({
-      startY: y,
-      margin: { left: margin, right: margin },
-      head: [fHdrs],
-      body: rows.map(r => [r.metric, r.fy_prev2||'—', r.fy_prev||'—', r.fy_latest||'—', r.latest_q||'—', r.trend||'']),
-      theme: 'plain',
-      styles: { fontSize: 7, textColor: [200,200,216], fillColor: [10,10,15], cellPadding: 2 },
-      headStyles: { fontSize: 7, textColor: gray, fillColor: lightBg, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [18,18,28] },
-      columnStyles: { 0: { cellWidth: 50, fontStyle: 'bold' } }
     });
     y = doc.lastAutoTable.finalY + 6;
   }
 
-  finTable('Income Statement', f.incomeStatement);
-  finTable('Cash Flow Statement', f.cashFlow);
-  finTable('Balance Sheet', f.balanceSheet);
+  // Score summary box
+  checkY(14);
+  doc.setFillColor(240, 245, 255);
+  doc.setDrawColor(...accentBlue);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(margin, y, colW, 12, 2, 2, 'FD');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(...navy);
+  doc.text('Base Score: ' + (sc.baseTotal||0) + '/40    Bonus: ' + (sc.bonusTotal||0) + '/10    Combined: ' + (sc.combinedTotal||0) + '/50    Verdict: ' + (sc.verdict||''), margin + 4, y + 8);
+  y += 18;
 
-  // ── Page 6: Growth & Capital ─────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════
+  // PAGE 3: VALUATION
+  // ════════════════════════════════════════════════════════════════
   newPage();
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(...accent);
-  doc.text('5. Growth & Operations', margin, y); y += 8;
+  doc.setFontSize(13);
+  doc.setTextColor(...navy);
+  doc.text('Valuation Analysis', margin, y); y += 8;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(...midGray);
+  doc.text(d.ticker + ' — ' + d.company, margin, y); y += 7;
+  rule();
 
-  const growthRows = (d.growth||[]).map(r => [r.metric, r.value, r.signal?'●':'', (r.notes||'').substring(0,50)]);
-  if (growthRows.length) {
+  const valData = d.valuation || [];
+  if (valData.length) {
     doc.autoTable({
       startY: y,
       margin: { left: margin, right: margin },
-      head: [['Metric', 'Value', '●', 'Notes']],
-      body: growthRows,
-      theme: 'plain',
-      styles: { fontSize: 7.5, textColor: [200,200,216], fillColor: [10,10,15], cellPadding: 2.5 },
-      headStyles: { fontSize: 7, textColor: gray, fillColor: lightBg, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [18,18,28] },
-      columnStyles: { 0: { cellWidth: 60, fontStyle: 'bold' }, 1: { cellWidth: 30 }, 2: { cellWidth: 10 }, 3: { cellWidth: 'auto' } },
+      head: [['Metric', 'Value', 'Benchmark', 'Signal', 'Notes', 'Source']],
+      body: valData.map(r => [r.metric, r.value||'—', r.benchmark||'', sigLabel(r.signal), (r.notes||'').substring(0,45), (r.source||'').substring(0,22)]),
+      theme: 'grid',
+      styles: { fontSize: 8, textColor: black, fillColor: white, cellPadding: 3, lineColor: lightGray, lineWidth: 0.2 },
+      headStyles: { fontSize: 7.5, textColor: white, fillColor: navy, fontStyle: 'bold', cellPadding: 3 },
+      alternateRowStyles: { fillColor: veryLight },
+      columnStyles: {
+        0: { cellWidth: 44, fontStyle: 'bold' },
+        1: { cellWidth: 22, halign: 'right', fontStyle: 'bold' },
+        2: { cellWidth: 30, fontSize: 7, textColor: midGray },
+        3: { cellWidth: 24 },
+        4: { cellWidth: 'auto' },
+        5: { cellWidth: 28, fontSize: 6.5, textColor: midGray }
+      },
       didParseCell: (data) => {
-        if (data.column.index === 2 && data.section === 'body') {
-          const sig = (d.growth||[])[data.row.index] && (d.growth||[])[data.row.index].signal;
+        if (data.column.index === 3 && data.section === 'body') {
+          const sig = valData[data.row.index] && valData[data.row.index].signal;
           data.cell.styles.textColor = sigColor(sig);
+          data.cell.styles.fontStyle = 'bold';
         }
       }
     });
     y = doc.lastAutoTable.finalY + 8;
   }
 
-  checkY(20);
+  // ════════════════════════════════════════════════════════════════
+  // PAGE 4: FINANCIALS
+  // ════════════════════════════════════════════════════════════════
+  newPage();
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(...accent);
-  doc.text('6. Capital Structure', margin, y); y += 8;
+  doc.setFontSize(13);
+  doc.setTextColor(...navy);
+  doc.text('Financial Statements', margin, y); y += 8;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(...midGray);
+  doc.text(d.ticker + ' — ' + d.company, margin, y); y += 7;
+  rule();
 
-  const capRows = (d.capitalStructure||[]).map(r => [r.metric, r.value, r.signal?'●':'', (r.notes||'').substring(0,50)]);
-  if (capRows.length) {
+  const f = d.financials || {};
+  const fy2 = f.fyLabel||'FY N-2', fy1 = f.fyPrevLabel||'FY N-1', fy0 = f.fyLatestLabel||'FY Latest', q = f.quarterLabel||'Latest Q';
+
+  function finTable(label, rows, headerColor) {
+    if (!rows || !rows.length) return;
+    checkY(25);
+    subHeading(label);
     doc.autoTable({
       startY: y,
       margin: { left: margin, right: margin },
-      head: [['Metric', 'Value', '●', 'Notes']],
-      body: capRows,
-      theme: 'plain',
-      styles: { fontSize: 7.5, textColor: [200,200,216], fillColor: [10,10,15], cellPadding: 2.5 },
-      headStyles: { fontSize: 7, textColor: gray, fillColor: lightBg, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [18,18,28] },
-      columnStyles: { 0: { cellWidth: 60, fontStyle: 'bold' }, 1: { cellWidth: 30 }, 2: { cellWidth: 10 }, 3: { cellWidth: 'auto' } },
+      head: [['Metric', fy2, fy1, fy0, q, 'Trend', 'Source']],
+      body: rows.map(r => [r.metric, r.fy_prev2||'—', r.fy_prev||'—', r.fy_latest||'—', r.latest_q||'—', r.trend||'', (r.source||'').substring(0,18)]),
+      theme: 'grid',
+      styles: { fontSize: 7.5, textColor: black, fillColor: white, cellPadding: 2.5, lineColor: lightGray, lineWidth: 0.2 },
+      headStyles: { fontSize: 7.5, textColor: white, fillColor: headerColor || navy, fontStyle: 'bold', cellPadding: 3 },
+      alternateRowStyles: { fillColor: veryLight },
+      columnStyles: {
+        0: { cellWidth: 44, fontStyle: 'bold' },
+        1: { cellWidth: 20, halign: 'right' },
+        2: { cellWidth: 20, halign: 'right' },
+        3: { cellWidth: 20, halign: 'right', fontStyle: 'bold' },
+        4: { cellWidth: 20, halign: 'right' },
+        5: { cellWidth: 14, halign: 'center' },
+        6: { cellWidth: 'auto', fontSize: 6.5, textColor: midGray }
+      }
+    });
+    y = doc.lastAutoTable.finalY + 6;
+  }
+
+  finTable('Income Statement', f.incomeStatement, navy);
+  finTable('Cash Flow Statement', f.cashFlow, [40, 80, 140]);
+  finTable('Balance Sheet', f.balanceSheet, [60, 100, 160]);
+
+  // ════════════════════════════════════════════════════════════════
+  // PAGE 5: GROWTH & CAPITAL STRUCTURE
+  // ════════════════════════════════════════════════════════════════
+  newPage();
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(...navy);
+  doc.text('Growth & Operations', margin, y); y += 8;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(...midGray);
+  doc.text(d.ticker + ' — ' + d.company, margin, y); y += 7;
+  rule();
+
+  const growthData = d.growth || [];
+  if (growthData.length) {
+    doc.autoTable({
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [['Metric', 'Value', 'Signal', 'Notes', 'Benchmark', 'Source']],
+      body: growthData.map(r => [r.metric, r.value||'—', sigLabel(r.signal), (r.notes||'').substring(0,45), r.benchmark||'', (r.source||'').substring(0,20)]),
+      theme: 'grid',
+      styles: { fontSize: 7.5, textColor: black, fillColor: white, cellPadding: 2.5, lineColor: lightGray, lineWidth: 0.2 },
+      headStyles: { fontSize: 7.5, textColor: white, fillColor: navy, fontStyle: 'bold', cellPadding: 3 },
+      alternateRowStyles: { fillColor: veryLight },
+      columnStyles: {
+        0: { cellWidth: 48, fontStyle: 'bold' },
+        1: { cellWidth: 22, fontStyle: 'bold', halign: 'right' },
+        2: { cellWidth: 22 },
+        3: { cellWidth: 'auto' },
+        4: { cellWidth: 28, fontSize: 7, textColor: midGray },
+        5: { cellWidth: 24, fontSize: 6.5, textColor: midGray }
+      },
       didParseCell: (data) => {
         if (data.column.index === 2 && data.section === 'body') {
-          const sig = (d.capitalStructure||[])[data.row.index] && (d.capitalStructure||[])[data.row.index].signal;
+          const sig = growthData[data.row.index] && growthData[data.row.index].signal;
           data.cell.styles.textColor = sigColor(sig);
+          data.cell.styles.fontStyle = 'bold';
         }
       }
     });
     y = doc.lastAutoTable.finalY + 8;
   }
 
-  // ── Page 7: Risk Register ────────────────────────────────────────
+  checkY(30);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(...navy);
+  doc.text('Capital Structure', margin, y); y += 8;
+  rule();
+
+  const capData = d.capitalStructure || [];
+  if (capData.length) {
+    doc.autoTable({
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [['Metric', 'Value', 'Signal', 'Notes', 'Source']],
+      body: capData.map(r => [r.metric, r.value||'—', sigLabel(r.signal), (r.notes||'').substring(0,55), (r.source||'').substring(0,22)]),
+      theme: 'grid',
+      styles: { fontSize: 7.5, textColor: black, fillColor: white, cellPadding: 2.5, lineColor: lightGray, lineWidth: 0.2 },
+      headStyles: { fontSize: 7.5, textColor: white, fillColor: navy, fontStyle: 'bold', cellPadding: 3 },
+      alternateRowStyles: { fillColor: veryLight },
+      columnStyles: {
+        0: { cellWidth: 48, fontStyle: 'bold' },
+        1: { cellWidth: 24, halign: 'right', fontStyle: 'bold' },
+        2: { cellWidth: 22 },
+        3: { cellWidth: 'auto' },
+        4: { cellWidth: 26, fontSize: 6.5, textColor: midGray }
+      },
+      didParseCell: (data) => {
+        if (data.column.index === 2 && data.section === 'body') {
+          const sig = capData[data.row.index] && capData[data.row.index].signal;
+          data.cell.styles.textColor = sigColor(sig);
+          data.cell.styles.fontStyle = 'bold';
+        }
+      }
+    });
+    y = doc.lastAutoTable.finalY + 8;
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // PAGE 6: RISK REGISTER
+  // ════════════════════════════════════════════════════════════════
   newPage();
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(...accent);
-  doc.text('7. Risk Register', margin, y); y += 8;
+  doc.setFontSize(13);
+  doc.setTextColor(...navy);
+  doc.text('Risk Register', margin, y); y += 8;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(...midGray);
+  doc.text(d.ticker + ' — ' + d.company, margin, y); y += 7;
+  rule();
 
-  const riskRows = (d.risks||[]).map(r => [r.id, r.factor||'', r.category||'', r.severity||'', (r.assessment||'').substring(0,60), (r.mitigation||'').substring(0,50)]);
-  if (riskRows.length) {
+  const riskData = d.risks || [];
+  if (riskData.length) {
     doc.autoTable({
       startY: y,
       margin: { left: margin, right: margin },
       head: [['#', 'Risk Factor', 'Category', 'Severity', 'Assessment', 'Mitigation']],
-      body: riskRows,
-      theme: 'plain',
-      styles: { fontSize: 7, textColor: [200,200,216], fillColor: [10,10,15], cellPadding: 2 },
-      headStyles: { fontSize: 7, textColor: gray, fillColor: lightBg, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [18,18,28] },
+      body: riskData.map(r => [r.id, r.factor||'', r.category||'', r.severity||'', (r.assessment||'').substring(0,65), (r.mitigation||'').substring(0,55)]),
+      theme: 'grid',
+      styles: { fontSize: 7.5, textColor: black, fillColor: white, cellPadding: 3, lineColor: lightGray, lineWidth: 0.2 },
+      headStyles: { fontSize: 7.5, textColor: white, fillColor: navy, fontStyle: 'bold', cellPadding: 3 },
+      alternateRowStyles: { fillColor: veryLight },
       columnStyles: {
-        0: { cellWidth: 8 }, 1: { cellWidth: 35, fontStyle: 'bold' },
-        2: { cellWidth: 25 }, 3: { cellWidth: 18 }, 4: { cellWidth: 'auto' }, 5: { cellWidth: 'auto' }
+        0: { cellWidth: 8, halign: 'center' },
+        1: { cellWidth: 36, fontStyle: 'bold' },
+        2: { cellWidth: 28 },
+        3: { cellWidth: 18, halign: 'center', fontStyle: 'bold' },
+        4: { cellWidth: 'auto' },
+        5: { cellWidth: 'auto' }
       },
       didParseCell: (data) => {
         if (data.column.index === 3 && data.section === 'body') {
-          const sev = (riskRows[data.row.index]||[])[3] || '';
-          if (sev === 'HIGH') data.cell.styles.textColor = [248,113,113];
-          else if (sev === 'MEDIUM') data.cell.styles.textColor = [251,191,36];
-          else data.cell.styles.textColor = [74,222,128];
+          const sev = (riskData[data.row.index]||{}).severity || '';
+          if (sev === 'HIGH') { data.cell.styles.textColor = white; data.cell.styles.fillColor = [180,40,40]; }
+          else if (sev === 'MEDIUM') { data.cell.styles.textColor = [100,60,0]; data.cell.styles.fillColor = [255,230,150]; }
+          else { data.cell.styles.textColor = [20,80,20]; data.cell.styles.fillColor = [200,240,200]; }
         }
       }
     });
     y = doc.lastAutoTable.finalY + 8;
   }
 
-  // ── Page 8: Glossary ─────────────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════
+  // PAGE 7: GLOSSARY
+  // ════════════════════════════════════════════════════════════════
   newPage();
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(...accent);
-  doc.text('8. Metrics Glossary', margin, y); y += 8;
+  doc.setFontSize(13);
+  doc.setTextColor(...navy);
+  doc.text('Metrics Glossary', margin, y); y += 8;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(...midGray);
+  doc.text('Key financial metrics and benchmarks used in this analysis', margin, y); y += 7;
+  rule();
 
-  const glossRows = (d.glossary||[]).map(r => [r.metric, r.formula||'', r.goodThreshold||'', r.actual||'—', (r.whyItMatters||'').substring(0,60)]);
-  if (glossRows.length) {
+  const glossData = d.glossary || [];
+  if (glossData.length) {
     doc.autoTable({
       startY: y,
       margin: { left: margin, right: margin },
-      head: [['Metric', 'Formula', 'Good Threshold', 'This Stock', 'Why It Matters']],
-      body: glossRows,
-      theme: 'plain',
-      styles: { fontSize: 7, textColor: [200,200,216], fillColor: [10,10,15], cellPadding: 2 },
-      headStyles: { fontSize: 7, textColor: gray, fillColor: lightBg, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [18,18,28] },
-      columnStyles: { 0: { cellWidth: 35, fontStyle: 'bold' }, 3: { fontStyle: 'bold', textColor: white } }
+      head: [['Metric', 'Formula', 'Good Threshold', d.ticker + ' Value', 'Why It Matters']],
+      body: glossData.map(r => [r.metric, r.formula||'', r.goodThreshold||'', r.actual||'—', r.whyItMatters||'']),
+      theme: 'grid',
+      styles: { fontSize: 7.5, textColor: black, fillColor: white, cellPadding: 3, lineColor: lightGray, lineWidth: 0.2 },
+      headStyles: { fontSize: 7.5, textColor: white, fillColor: navy, fontStyle: 'bold', cellPadding: 3 },
+      alternateRowStyles: { fillColor: veryLight },
+      columnStyles: {
+        0: { cellWidth: 34, fontStyle: 'bold' },
+        1: { cellWidth: 42, fontSize: 7, textColor: midGray },
+        2: { cellWidth: 30 },
+        3: { cellWidth: 22, halign: 'center', fontStyle: 'bold', textColor: navy },
+        4: { cellWidth: 'auto' }
+      }
     });
+    y = doc.lastAutoTable.finalY + 8;
   }
 
-  // ── Footer on all pages ──────────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════
+  // FOOTER ON ALL PAGES
+  // ════════════════════════════════════════════════════════════════
   const pageCount = doc.internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
-    doc.setFillColor(...dark);
-    doc.rect(0, 290, 210, 7, 'F');
-    doc.setFontSize(6);
-    doc.setTextColor(...gray);
-    doc.text('Equity Analyst · AI-Powered · Not Financial Advice', margin, 295);
-    doc.text('Page ' + i + ' of ' + pageCount, 196, 295, { align: 'right' });
+    // Footer line
+    doc.setDrawColor(...lightGray);
+    doc.setLineWidth(0.3);
+    doc.line(margin, 282, pageW - margin, 282);
+    // Footer text
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(...midGray);
+    doc.text('Equity Analyst  ·  AI-Powered Research  ·  Not Financial Advice', margin, 287);
+    doc.text('Page ' + i + ' of ' + pageCount, pageW - margin, 287, { align: 'right' });
+    // Header on pages 2+
+    if (i > 1) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(...midGray);
+      doc.text(d.ticker + '  —  ' + d.company + '  ·  Equity Evaluation Report', margin, 13);
+      doc.text(dateStr, pageW - margin, 13, { align: 'right' });
+    }
   }
 
   // Save
-  const filename = (d.ticker || 'stock') + '_equity_analysis_' + new Date().toISOString().slice(0,10) + '.pdf';
+  const filename = (d.ticker || 'stock') + '_equity_report_' + new Date().toISOString().slice(0,10) + '.pdf';
   doc.save(filename);
 }
 
