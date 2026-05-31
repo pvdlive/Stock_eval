@@ -1163,7 +1163,14 @@ function render() {
   ).join('')}</div>`;
 
   document.getElementById('mainContent').innerHTML =
-    pdfBtn + banner + tabBar + `<div id="tabContent"></div>`;
+    banner + tabBar + '<div id="tabContent"></div>';
+
+  // Add export buttons at top
+  const btnDiv = document.createElement('div');
+  btnDiv.style.cssText = 'display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:1.5rem';
+  btnDiv.innerHTML = '<button class="pdf-btn" onclick="downloadPDF()">&#8595; Download PDF Report</button>' +
+    '<button class="xl-btn" onclick="downloadExcel()">&#8595; Export to Excel</button>';
+  document.getElementById('mainContent').insertBefore(btnDiv, document.getElementById('mainContent').firstChild);
 
   renderTab();
 }
