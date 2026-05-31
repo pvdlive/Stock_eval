@@ -640,6 +640,46 @@
   }
 
   /* ── Footer ── */
+  .pdf-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--accent);
+    color: #0a0a0f;
+    border: none;
+    border-radius: var(--radius-lg);
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 1.5rem;
+    transition: background 0.15s;
+    letter-spacing: 0.02em;
+  }
+  .pdf-btn:hover { background: var(--accent2); }
+  .xl-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-lg);
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 1.5rem;
+    margin-left: 10px;
+    transition: all 0.15s;
+    letter-spacing: 0.02em;
+  }
+  .xl-btn:hover { background: var(--accent-dim); }
+  .xl-btn svg { width: 16px; height: 16px; }
+  .pdf-btn svg { width: 16px; height: 16px; }
+
   .site-footer {
     border-top: 1px solid var(--border);
     padding: 1.5rem 2rem;
@@ -658,6 +698,9 @@
     .hero-title { font-size: 32px; }
   }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
 
@@ -1085,6 +1128,23 @@ function render() {
   const rClass = (d.analystRating || '').toLowerCase().includes('buy') ? 'rating-buy'
     : (d.analystRating || '').toLowerCase().includes('sell') ? 'rating-sell' : 'rating-hold';
 
+  const pdfBtn = `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-bottom:0">
+    <button class="pdf-btn" onclick="downloadPDF()">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 12H3a1 1 0 01-1-1V3a1 1 0 011-1h8a1 1 0 011 1v1M8 16H5a1 1 0 01-1-1V6a1 1 0 011-1h7l3 3v7a1 1 0 01-1 1h-1"/>
+        <path d="M8 12l2 2 4-4"/>
+      </svg>
+      Download PDF Report
+    </button>
+    <button class="xl-btn" onclick="downloadExcel()">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="1" y="1" width="14" height="14" rx="2"/>
+        <path d="M5 5l6 6M11 5l-6 6"/>
+      </svg>
+      Export to Excel
+    </button>
+  </div>`;
+
   const banner = `
     <div class="ticker-banner">
       <div>
@@ -1103,7 +1163,7 @@ function render() {
   ).join('')}</div>`;
 
   document.getElementById('mainContent').innerHTML =
-    banner + tabBar + `<div id="tabContent"></div>`;
+    pdfBtn + banner + tabBar + `<div id="tabContent"></div>`;
 
   renderTab();
 }
@@ -1252,6 +1312,610 @@ function tabGlossary(d) {
   const rows = (d.glossary || []).map(r => [r.metric, `<span style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">${r.formula}</span>`, r.goodThreshold, `<strong>${r.actual||'—'}</strong>`, r.whyItMatters]);
   return `<div class="section">${tbl(['Metric', 'Formula', 'Good Threshold', 'This Stock', 'Why It Matters'], rows)}</div>`;
 }
+// ─── PDF Export ──────────────────────────────────────────────────────
+function downloadPDF() {
+  if (!currentData) return;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const d = currentData;
+  const sc = d.scoring || {};
+  const pageW = 210;
+  const margin = 14;
+  const colW = pageW - margin * 2;
+  let y = 0;
+
+  // Colors
+  const dark = [10, 10, 15];
+  const accent = [200, 240, 96];
+  const white = [255, 255, 255];
+  const gray = [144, 144, 168];
+  const lightBg = [26, 26, 36];
+  const borderGray = [40, 40, 52];
+
+  function newPage() {
+    doc.addPage();
+    y = 14;
+  }
+
+  function checkY(needed) {
+    if (y + needed > 280) newPage();
+  }
+
+  function sectionHeader(title) {
+    checkY(12);
+    doc.setFillColor(...lightBg);
+    doc.roundedRect(margin, y, colW, 8, 2, 2, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...gray);
+    doc.text(title.toUpperCase(), margin + 3, y + 5.5);
+    y += 11;
+  }
+
+  function kvRow(label, value, col = 0, cols = 3) {
+    const w = colW / cols;
+    const x = margin + col * w;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(...gray);
+    doc.text(label, x + 2, y + 3);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...white);
+    const val = String(value || '—').substring(0, 28);
+    doc.text(val, x + 2, y + 8);
+  }
+
+  function sigColor(s) {
+    const l = (s || '').toLowerCase();
+    if (l === 'green') return [74, 222, 128];
+    if (l === 'yellow' || l === 'amber') return [251, 191, 36];
+    if (l === 'red') return [248, 113, 113];
+    return gray;
+  }
+
+  // ── Cover page ───────────────────────────────────────────────────
+  doc.setFillColor(...dark);
+  doc.rect(0, 0, 210, 297, 'F');
+
+  // Accent bar
+  doc.setFillColor(...accent);
+  doc.rect(0, 0, 210, 3, 'F');
+
+  // Logo area
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(...gray);
+  doc.text('EQUITY ANALYST', margin, 20);
+
+  // Ticker
+  doc.setFontSize(48);
+  doc.setTextColor(...accent);
+  doc.text(d.ticker || '', margin, 55);
+
+  // Company
+  doc.setFontSize(18);
+  doc.setTextColor(...white);
+  doc.text(d.company || '', margin, 67);
+
+  // Meta
+  doc.setFontSize(10);
+  doc.setTextColor(...gray);
+  doc.text([d.exchange + ' · ' + d.sector, d.price + ' · Market Cap: ' + d.marketCap].join('   '), margin, 78);
+
+  // Score box
+  doc.setFillColor(...lightBg);
+  doc.roundedRect(margin, 90, 80, 30, 3, 3, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(32);
+  doc.setTextColor(...accent);
+  doc.text(String(sc.combinedTotal || 0), margin + 6, 112);
+  doc.setFontSize(14);
+  doc.setTextColor(...gray);
+  doc.text('/ 50', margin + 28, 112);
+  doc.setFontSize(10);
+  doc.setTextColor(...white);
+  doc.text(sc.verdict || '', margin + 6, 118);
+
+  // Rating badge
+  doc.setFillColor(...lightBg);
+  doc.roundedRect(margin + 86, 90, 50, 30, 3, 3, 'F');
+  doc.setFontSize(10);
+  doc.setTextColor(...gray);
+  doc.text('ANALYST RATING', margin + 88, 100);
+  doc.setFontSize(14);
+  doc.setTextColor(...white);
+  doc.text(d.analystRating || '—', margin + 88, 112);
+
+  // Date
+  doc.setFontSize(8);
+  doc.setTextColor(...gray);
+  doc.text('Generated: ' + new Date().toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'}), margin, 135);
+  doc.text('AI-Powered · SEC EDGAR · Live Market Data · Not Financial Advice', margin, 141);
+
+  // Sources
+  if (d.sourcesUsed && d.sourcesUsed.length) {
+    doc.setFontSize(7);
+    doc.setTextColor(...gray);
+    doc.text('Sources: ' + d.sourcesUsed.slice(0,5).join(' · '), margin, 152, { maxWidth: colW });
+  }
+
+  // ── Page 2: Summary ──────────────────────────────────────────────
+  newPage();
+  const s = d.summary || {};
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(...accent);
+  doc.text('1. Summary', margin, y); y += 8;
+
+  sectionHeader('Latest Full Year — ' + (s.fy_latest_label || ''));
+  doc.setFillColor(...lightBg);
+  doc.roundedRect(margin, y, colW, 16, 2, 2, 'F');
+  kvRow('Revenue', s.fy_latest_revenue, 0, 3);
+  kvRow('Net Income', s.fy_latest_netIncome, 1, 3);
+  kvRow('EPS (Diluted)', s.fy_latest_eps, 2, 3);
+  y += 19;
+
+  sectionHeader('Prior Years');
+  doc.setFillColor(...lightBg);
+  doc.roundedRect(margin, y, colW, 16, 2, 2, 'F');
+  kvRow((s.fy_prev_label||'FY-1') + ' Revenue', s.fy_prev_revenue, 0, 3);
+  kvRow((s.fy_prev_label||'FY-1') + ' Net Inc.', s.fy_prev_netIncome, 1, 3);
+  kvRow((s.fy_prev2_label||'FY-2') + ' Revenue', s.fy_prev2_revenue, 2, 3);
+  y += 19;
+
+  sectionHeader('Balance Sheet & Key Metrics');
+  doc.setFillColor(...lightBg);
+  doc.roundedRect(margin, y, colW, 32, 2, 2, 'F');
+  kvRow('Cash', s.cash, 0, 3);
+  kvRow('Debt', s.debt, 1, 3);
+  kvRow('Net Cash', s.netCash, 2, 3);
+  y += 16;
+  kvRow('FCF', s.fcf, 0, 3);
+  kvRow('Employees', s.employees, 1, 3);
+  kvRow('TAM (est)', s.tam, 2, 3);
+  y += 19;
+
+  sectionHeader('Ownership');
+  doc.setFillColor(...lightBg);
+  doc.roundedRect(margin, y, colW, 16, 2, 2, 'F');
+  kvRow('Institutional Own.', s.institutionalOwnership, 0, 3);
+  kvRow('Short Interest', s.shortInterest, 1, 3);
+  kvRow('Insider Activity', s.insiderActivity, 2, 3);
+  y += 22;
+
+  // ── Page 3: Scoring ──────────────────────────────────────────────
+  newPage();
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(...accent);
+  doc.text('2. Scoring Framework', margin, y); y += 8;
+
+  const criteria = sc.criteria || [];
+  if (criteria.length) {
+    doc.autoTable({
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [['#', 'Criterion', 'Max', 'Score', '●', 'Justification']],
+      body: criteria.map(c => [c.id, c.criterion, c.max, c.score, c.signal ? '●' : '', (c.justification||'').substring(0,60)]),
+      theme: 'plain',
+      styles: { fontSize: 7, textColor: [200,200,216], fillColor: [10,10,15], cellPadding: 2 },
+      headStyles: { fontSize: 7, textColor: gray, fillColor: lightBg, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [18,18,28] },
+      columnStyles: {
+        0: { cellWidth: 8 }, 1: { cellWidth: 55 }, 2: { cellWidth: 12 },
+        3: { cellWidth: 12, fontStyle: 'bold' }, 4: { cellWidth: 8 }, 5: { cellWidth: 'auto' }
+      },
+      didParseCell: (data) => {
+        if (data.column.index === 4 && data.section === 'body') {
+          const sig = criteria[data.row.index] && criteria[data.row.index].signal;
+          data.cell.styles.textColor = sigColor(sig);
+        }
+      }
+    });
+    y = doc.lastAutoTable.finalY + 4;
+  }
+
+  const bonuses = sc.bonuses || [];
+  if (bonuses.length) {
+    checkY(20);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...gray);
+    doc.text('BONUS CRITERIA', margin, y); y += 4;
+    doc.autoTable({
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [['#', 'Criterion', 'Max', 'Score', 'Justification']],
+      body: bonuses.map(b => [b.id, b.criterion, b.max, b.score, (b.justification||'').substring(0,70)]),
+      theme: 'plain',
+      styles: { fontSize: 7, textColor: [200,200,216], fillColor: [10,10,15], cellPadding: 2 },
+      headStyles: { fontSize: 7, textColor: gray, fillColor: lightBg, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [18,18,28] }
+    });
+    y = doc.lastAutoTable.finalY + 4;
+  }
+
+  checkY(16);
+  doc.setFillColor(...lightBg);
+  doc.roundedRect(margin, y, colW, 12, 2, 2, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(...white);
+  doc.text('Combined Score: ' + (sc.combinedTotal||0) + ' / 50   —   ' + (sc.verdict||''), margin + 4, y + 8);
+  y += 16;
+
+  // ── Page 4: Valuation ────────────────────────────────────────────
+  newPage();
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(...accent);
+  doc.text('3. Valuation', margin, y); y += 8;
+
+  const valRows = (d.valuation || []).map(r => [r.metric, r.value, r.signal ? '●' : '', r.notes || '']);
+  if (valRows.length) {
+    doc.autoTable({
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [['Metric', 'Value', '●', 'Notes']],
+      body: valRows,
+      theme: 'plain',
+      styles: { fontSize: 8, textColor: [200,200,216], fillColor: [10,10,15], cellPadding: 2.5 },
+      headStyles: { fontSize: 7, textColor: gray, fillColor: lightBg, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [18,18,28] },
+      columnStyles: { 0: { cellWidth: 55, fontStyle: 'bold' }, 1: { cellWidth: 30 }, 2: { cellWidth: 10 }, 3: { cellWidth: 'auto' } },
+      didParseCell: (data) => {
+        if (data.column.index === 2 && data.section === 'body') {
+          const sig = (d.valuation||[])[data.row.index] && (d.valuation||[])[data.row.index].signal;
+          data.cell.styles.textColor = sigColor(sig);
+        }
+      }
+    });
+    y = doc.lastAutoTable.finalY + 8;
+  }
+
+  // ── Page 5: Financials ───────────────────────────────────────────
+  newPage();
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(...accent);
+  doc.text('4. Financial Statements', margin, y); y += 8;
+
+  const f = d.financials || {};
+  const fHdrs = ['Metric', f.fyLabel||'FY N-2', f.fyPrevLabel||'FY N-1', f.fyLatestLabel||'FY Latest', f.quarterLabel||'Latest Q', 'Trend'];
+
+  function finTable(label, rows) {
+    if (!rows || !rows.length) return;
+    checkY(20);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...gray);
+    doc.text(label.toUpperCase(), margin, y); y += 4;
+    doc.autoTable({
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [fHdrs],
+      body: rows.map(r => [r.metric, r.fy_prev2||'—', r.fy_prev||'—', r.fy_latest||'—', r.latest_q||'—', r.trend||'']),
+      theme: 'plain',
+      styles: { fontSize: 7, textColor: [200,200,216], fillColor: [10,10,15], cellPadding: 2 },
+      headStyles: { fontSize: 7, textColor: gray, fillColor: lightBg, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [18,18,28] },
+      columnStyles: { 0: { cellWidth: 50, fontStyle: 'bold' } }
+    });
+    y = doc.lastAutoTable.finalY + 6;
+  }
+
+  finTable('Income Statement', f.incomeStatement);
+  finTable('Cash Flow Statement', f.cashFlow);
+  finTable('Balance Sheet', f.balanceSheet);
+
+  // ── Page 6: Growth & Capital ─────────────────────────────────────
+  newPage();
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(...accent);
+  doc.text('5. Growth & Operations', margin, y); y += 8;
+
+  const growthRows = (d.growth||[]).map(r => [r.metric, r.value, r.signal?'●':'', (r.notes||'').substring(0,50)]);
+  if (growthRows.length) {
+    doc.autoTable({
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [['Metric', 'Value', '●', 'Notes']],
+      body: growthRows,
+      theme: 'plain',
+      styles: { fontSize: 7.5, textColor: [200,200,216], fillColor: [10,10,15], cellPadding: 2.5 },
+      headStyles: { fontSize: 7, textColor: gray, fillColor: lightBg, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [18,18,28] },
+      columnStyles: { 0: { cellWidth: 60, fontStyle: 'bold' }, 1: { cellWidth: 30 }, 2: { cellWidth: 10 }, 3: { cellWidth: 'auto' } },
+      didParseCell: (data) => {
+        if (data.column.index === 2 && data.section === 'body') {
+          const sig = (d.growth||[])[data.row.index] && (d.growth||[])[data.row.index].signal;
+          data.cell.styles.textColor = sigColor(sig);
+        }
+      }
+    });
+    y = doc.lastAutoTable.finalY + 8;
+  }
+
+  checkY(20);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(...accent);
+  doc.text('6. Capital Structure', margin, y); y += 8;
+
+  const capRows = (d.capitalStructure||[]).map(r => [r.metric, r.value, r.signal?'●':'', (r.notes||'').substring(0,50)]);
+  if (capRows.length) {
+    doc.autoTable({
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [['Metric', 'Value', '●', 'Notes']],
+      body: capRows,
+      theme: 'plain',
+      styles: { fontSize: 7.5, textColor: [200,200,216], fillColor: [10,10,15], cellPadding: 2.5 },
+      headStyles: { fontSize: 7, textColor: gray, fillColor: lightBg, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [18,18,28] },
+      columnStyles: { 0: { cellWidth: 60, fontStyle: 'bold' }, 1: { cellWidth: 30 }, 2: { cellWidth: 10 }, 3: { cellWidth: 'auto' } },
+      didParseCell: (data) => {
+        if (data.column.index === 2 && data.section === 'body') {
+          const sig = (d.capitalStructure||[])[data.row.index] && (d.capitalStructure||[])[data.row.index].signal;
+          data.cell.styles.textColor = sigColor(sig);
+        }
+      }
+    });
+    y = doc.lastAutoTable.finalY + 8;
+  }
+
+  // ── Page 7: Risk Register ────────────────────────────────────────
+  newPage();
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(...accent);
+  doc.text('7. Risk Register', margin, y); y += 8;
+
+  const riskRows = (d.risks||[]).map(r => [r.id, r.factor||'', r.category||'', r.severity||'', (r.assessment||'').substring(0,60), (r.mitigation||'').substring(0,50)]);
+  if (riskRows.length) {
+    doc.autoTable({
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [['#', 'Risk Factor', 'Category', 'Severity', 'Assessment', 'Mitigation']],
+      body: riskRows,
+      theme: 'plain',
+      styles: { fontSize: 7, textColor: [200,200,216], fillColor: [10,10,15], cellPadding: 2 },
+      headStyles: { fontSize: 7, textColor: gray, fillColor: lightBg, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [18,18,28] },
+      columnStyles: {
+        0: { cellWidth: 8 }, 1: { cellWidth: 35, fontStyle: 'bold' },
+        2: { cellWidth: 25 }, 3: { cellWidth: 18 }, 4: { cellWidth: 'auto' }, 5: { cellWidth: 'auto' }
+      },
+      didParseCell: (data) => {
+        if (data.column.index === 3 && data.section === 'body') {
+          const sev = (riskRows[data.row.index]||[])[3] || '';
+          if (sev === 'HIGH') data.cell.styles.textColor = [248,113,113];
+          else if (sev === 'MEDIUM') data.cell.styles.textColor = [251,191,36];
+          else data.cell.styles.textColor = [74,222,128];
+        }
+      }
+    });
+    y = doc.lastAutoTable.finalY + 8;
+  }
+
+  // ── Page 8: Glossary ─────────────────────────────────────────────
+  newPage();
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(...accent);
+  doc.text('8. Metrics Glossary', margin, y); y += 8;
+
+  const glossRows = (d.glossary||[]).map(r => [r.metric, r.formula||'', r.goodThreshold||'', r.actual||'—', (r.whyItMatters||'').substring(0,60)]);
+  if (glossRows.length) {
+    doc.autoTable({
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [['Metric', 'Formula', 'Good Threshold', 'This Stock', 'Why It Matters']],
+      body: glossRows,
+      theme: 'plain',
+      styles: { fontSize: 7, textColor: [200,200,216], fillColor: [10,10,15], cellPadding: 2 },
+      headStyles: { fontSize: 7, textColor: gray, fillColor: lightBg, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [18,18,28] },
+      columnStyles: { 0: { cellWidth: 35, fontStyle: 'bold' }, 3: { fontStyle: 'bold', textColor: white } }
+    });
+  }
+
+  // ── Footer on all pages ──────────────────────────────────────────
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFillColor(...dark);
+    doc.rect(0, 290, 210, 7, 'F');
+    doc.setFontSize(6);
+    doc.setTextColor(...gray);
+    doc.text('Equity Analyst · AI-Powered · Not Financial Advice', margin, 295);
+    doc.text('Page ' + i + ' of ' + pageCount, 196, 295, { align: 'right' });
+  }
+
+  // Save
+  const filename = (d.ticker || 'stock') + '_equity_analysis_' + new Date().toISOString().slice(0,10) + '.pdf';
+  doc.save(filename);
+}
+
+
+// ─── Excel Export ─────────────────────────────────────────────────────
+function downloadExcel() {
+  if (!currentData) return;
+  const d = currentData;
+  const sc = d.scoring || {};
+  const f = d.financials || {};
+  const ticker = d.ticker || 'STOCK';
+  const today = new Date().toISOString().slice(0,10); // YYYY-MM-DD
+  const sheetName = (ticker + ' ' + today).substring(0, 31); // Excel sheet name max 31 chars
+
+  const wb = XLSX.utils.book_new();
+
+  // ── Helper: style header row ────────────────────────────────────
+  function makeSheet(rows) {
+    return XLSX.utils.aoa_to_sheet(rows);
+  }
+
+  function setColWidths(ws, widths) {
+    ws['!cols'] = widths.map(w => ({ wch: w }));
+  }
+
+  // ── 1. SUMMARY tab ──────────────────────────────────────────────
+  const s = d.summary || {};
+  const summaryRows = [
+    [ticker + ' — ' + (d.company || '') + '  |  Equity Analysis Report'],
+    [''],
+    ['Exchange', d.exchange, '', 'Sector', d.sector],
+    ['Price', d.price, '', 'Market Cap', d.marketCap],
+    ['Analyst Rating', d.analystRating, '', 'Overall Score', (sc.combinedTotal||0) + ' / 50'],
+    ['Verdict', sc.verdict || '', '', '', ''],
+    [''],
+    ['FINANCIAL SUMMARY', '', '', '', ''],
+    ['Period', s.fy_prev2_label||'FY-2', s.fy_prev_label||'FY-1', s.fy_latest_label||'FY Latest', s.latest_q_label||'Latest Q'],
+    ['Revenue', s.fy_prev2_revenue||'', s.fy_prev_revenue||'', s.fy_latest_revenue||'', s.latest_quarter_revenue||''],
+    ['Net Income', s.fy_prev2_netIncome||'', s.fy_prev_netIncome||'', s.fy_latest_netIncome||'', s.latest_quarter_netIncome||''],
+    ['EPS (Diluted)', s.fy_prev2_eps||'', s.fy_prev_eps||'', s.fy_latest_eps||'', s.latest_quarter_eps||''],
+    [''],
+    ['KEY METRICS', '', '', '', ''],
+    ['Cash', s.cash||'', '', 'Debt', s.debt||''],
+    ['Net Cash', s.netCash||'', '', 'FCF', s.fcf||''],
+    ['Employees', s.employees||'', '', 'TAM (est)', s.tam||''],
+    ['RPO', s.rpo||'', '', 'RPO Growth', s.rpo_growth||''],
+    ['Renewal Rate', s.renewalRate||'', '', 'Subscription Mix', s.subscriptionMix||''],
+    [''],
+    ['OWNERSHIP', '', '', '', ''],
+    ['Institutional Own.', s.institutionalOwnership||'', '', 'Short Interest', s.shortInterest||''],
+    ['Insider Activity', s.insiderActivity||'', '', '', ''],
+    [''],
+    ['Sources: ' + (d.sourcesUsed||[]).join(', ')],
+  ];
+  const summaryWS = makeSheet(summaryRows);
+  setColWidths(summaryWS, [22, 18, 4, 22, 18]);
+  XLSX.utils.book_append_sheet(wb, summaryWS, sheetName + ' Summary');
+
+  // ── 2. SCORING tab ──────────────────────────────────────────────
+  const scoringRows = [
+    [ticker + ' — Scoring Framework'],
+    [''],
+    ['8-CRITERIA BASE SCORE (40 pts)'],
+    ['#', 'Criterion', 'Max', 'Score', 'Signal', 'Justification', 'Source'],
+  ];
+  (sc.criteria||[]).forEach(c => {
+    scoringRows.push([c.id, c.criterion, c.max, c.score, c.signal, c.justification, c.source]);
+  });
+  scoringRows.push(['', 'BASE TOTAL', 40, sc.baseTotal||0, '', '', '']);
+  scoringRows.push(['']);
+  scoringRows.push(['BONUS CRITERIA (10 pts)']);
+  scoringRows.push(['#', 'Criterion', 'Max', 'Score', 'Signal', 'Justification', 'Source']);
+  (sc.bonuses||[]).forEach(b => {
+    scoringRows.push([b.id, b.criterion, b.max, b.score, b.signal, b.justification, b.source]);
+  });
+  scoringRows.push(['', 'BONUS TOTAL', 10, sc.bonusTotal||0, '', '', '']);
+  scoringRows.push(['', 'COMBINED TOTAL', 50, sc.combinedTotal||0, '', sc.verdict||'', '']);
+  const scoringWS = makeSheet(scoringRows);
+  setColWidths(scoringWS, [6, 35, 8, 8, 10, 45, 25]);
+  XLSX.utils.book_append_sheet(wb, scoringWS, sheetName + ' Scoring');
+
+  // ── 3. VALUATION tab ────────────────────────────────────────────
+  const valRows = [
+    [ticker + ' — Valuation'],
+    [''],
+    ['Metric', 'Value', 'Benchmark', 'Signal', 'Notes', 'Source'],
+  ];
+  (d.valuation||[]).forEach(r => {
+    valRows.push([r.metric, r.value, r.benchmark||'', r.signal, r.notes||'', r.source||'']);
+  });
+  const valWS = makeSheet(valRows);
+  setColWidths(valWS, [28, 18, 22, 10, 35, 25]);
+  XLSX.utils.book_append_sheet(wb, valWS, sheetName + ' Valuation');
+
+  // ── 4. FINANCIALS tab ───────────────────────────────────────────
+  const fy2 = f.fyLabel||'FY N-2', fy1 = f.fyPrevLabel||'FY N-1', fy0 = f.fyLatestLabel||'FY Latest', q = f.quarterLabel||'Latest Q';
+  const finRows = [
+    [ticker + ' — Financial Statements'],
+    [''],
+    ['INCOME STATEMENT'],
+    ['Metric', fy2, fy1, fy0, q, 'Trend', 'Source'],
+  ];
+  (f.incomeStatement||[]).forEach(r => {
+    finRows.push([r.metric, r.fy_prev2||'', r.fy_prev||'', r.fy_latest||'', r.latest_q||'', r.trend||'', r.source||'']);
+  });
+  finRows.push(['']);
+  finRows.push(['CASH FLOW STATEMENT']);
+  finRows.push(['Metric', fy2, fy1, fy0, q, 'Trend', 'Source']);
+  (f.cashFlow||[]).forEach(r => {
+    finRows.push([r.metric, r.fy_prev2||'', r.fy_prev||'', r.fy_latest||'', r.latest_q||'', r.trend||'', r.source||'']);
+  });
+  finRows.push(['']);
+  finRows.push(['BALANCE SHEET']);
+  finRows.push(['Metric', fy2, fy1, fy0, q, 'Trend', 'Source']);
+  (f.balanceSheet||[]).forEach(r => {
+    finRows.push([r.metric, r.fy_prev2||'', r.fy_prev||'', r.fy_latest||'', r.latest_q||'', r.trend||'', r.source||'']);
+  });
+  const finWS = makeSheet(finRows);
+  setColWidths(finWS, [30, 14, 14, 14, 14, 10, 22]);
+  XLSX.utils.book_append_sheet(wb, finWS, sheetName + ' Financials');
+
+  // ── 5. GROWTH tab ───────────────────────────────────────────────
+  const growthRows = [
+    [ticker + ' — Growth & Operations'],
+    [''],
+    ['Metric', 'Value', 'Signal', 'Notes', 'Benchmark', 'Source'],
+  ];
+  (d.growth||[]).forEach(r => {
+    growthRows.push([r.metric, r.value, r.signal, r.notes||'', r.benchmark||'', r.source||'']);
+  });
+  const growthWS = makeSheet(growthRows);
+  setColWidths(growthWS, [32, 18, 10, 40, 20, 22]);
+  XLSX.utils.book_append_sheet(wb, growthWS, sheetName + ' Growth');
+
+  // ── 6. CAPITAL STRUCTURE tab ─────────────────────────────────────
+  const capRows = [
+    [ticker + ' — Capital Structure'],
+    [''],
+    ['Metric', 'Value', 'Signal', 'Notes', 'Source'],
+  ];
+  (d.capitalStructure||[]).forEach(r => {
+    capRows.push([r.metric, r.value, r.signal, r.notes||'', r.source||'']);
+  });
+  const capWS = makeSheet(capRows);
+  setColWidths(capWS, [32, 20, 10, 45, 22]);
+  XLSX.utils.book_append_sheet(wb, capWS, sheetName + ' Capital');
+
+  // ── 7. RISK REGISTER tab ─────────────────────────────────────────
+  const riskRows = [
+    [ticker + ' — Risk Register'],
+    [''],
+    ['#', 'Risk Factor', 'Category', 'Severity', 'Assessment', 'Mitigation', 'SEC Ref'],
+  ];
+  (d.risks||[]).forEach(r => {
+    riskRows.push([r.id, r.factor||'', r.category||'', r.severity||'', r.assessment||'', r.mitigation||'', r.secRef||'']);
+  });
+  const riskWS = makeSheet(riskRows);
+  setColWidths(riskWS, [5, 28, 18, 12, 40, 35, 20]);
+  XLSX.utils.book_append_sheet(wb, riskWS, sheetName + ' Risks');
+
+  // ── 8. GLOSSARY tab ──────────────────────────────────────────────
+  const glossRows = [
+    [ticker + ' — Metrics Glossary'],
+    [''],
+    ['Metric', 'Formula', 'Good Threshold', 'This Stock', 'Why It Matters'],
+  ];
+  (d.glossary||[]).forEach(r => {
+    glossRows.push([r.metric, r.formula||'', r.goodThreshold||'', r.actual||'—', r.whyItMatters||'']);
+  });
+  const glossWS = makeSheet(glossRows);
+  setColWidths(glossWS, [25, 35, 22, 18, 40]);
+  XLSX.utils.book_append_sheet(wb, glossWS, sheetName + ' Glossary');
+
+  // ── Save ─────────────────────────────────────────────────────────
+  const filename = ticker + '_equity_analysis_' + new Date().toISOString().slice(0,10) + '.xlsx';
+  XLSX.writeFile(wb, filename);
+}
+
+
 </script>
 </body>
 </html>
